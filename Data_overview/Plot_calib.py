@@ -26,8 +26,8 @@ matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 16
 
 #%% Inputs
-assist_id=11#instrument ID
-date='2023-06-13'
+assist_id=10#instrument ID
+date='2023-12-01'
 setpoint=40#[C] temperature setpoint
 
 tol=0.5#[C] tolerance of Tb around setpoint to define valid calibration
@@ -65,14 +65,17 @@ T_985=Data_sum['mean_Tb_985_990'].values-273.15
 #define valid calibration period
 steady=np.where(np.abs(T_985-setpoint)<tol)[0]
 if np.sum(np.diff(steady)>1)>0:
-    jumps=np.where(np.diff(steady)>1)[0]
-    steady=steady[jumps[-1]+1:]
+    jumps1=np.append(0,np.where(np.diff(steady)>1)[0])
+    jumps2=np.append(np.where(np.diff(steady)>1)[0]-1,-1)
 
 #channel A file
 time_cha=np.datetime64('1970-01-01T00:00:00')+Data_cha['base_time'].values*np.timedelta64(1,'ms')+Data_cha['time'].values*np.timedelta64(1,'s')
 wnum=Data_cha['wnum'].values
 
-sel_time=np.where((time_cha>time_sum[steady[0]])&(time_cha<time_sum[steady[-1]]))[0]
+sel_time=np.array([])
+for i1,i2 in zip(jumps1,jumps2):
+    sel_time=np.append(sel_time,np.where((time_cha>time_sum[steady[i1]])&(time_cha<time_sum[steady[i2]]))[0])
+sel_time=np.int64(sel_time)
 mean_rad=Data_cha['mean_rad'].values
 
 #error analysis
@@ -85,9 +88,10 @@ plt.close('all')
 date_fmt = mdates.DateFormatter('%H:%M')
 plt.figure(figsize=(18,10))
 plt.subplot(3,1,1)
-patch = plt.Rectangle((time_sum[steady[0]],np.nanmin(T_985)), time_sum[steady[-1]]-time_sum[steady[0]],np.nanmax(T_985)-np.nanmin(T_985),
-                      facecolor='red',alpha=0.5)
-plt.gca().add_patch(patch)
+for i1,i2 in zip(jumps1,jumps2):
+    patch = plt.Rectangle((time_sum[steady[i1]],-100), time_sum[steady[i2]]-time_sum[steady[i1]],150,
+                          facecolor='red',alpha=0.5)
+    plt.gca().add_patch(patch)
 plt.plot([time_sum[0],time_sum[-1]],[setpoint,setpoint],'-r')
 plt.plot([time_sum[0],time_sum[-1]],[setpoint-tol,setpoint-tol],'--r')
 plt.plot([time_sum[0],time_sum[-1]],[setpoint+tol,setpoint+tol],'--r')
@@ -105,6 +109,7 @@ plt.plot(wnum,mean_rad[sel_time,:].T,'k',alpha=0.1)
 plt.plot(wnum,rad_BB,'--r',label='BB emission (Plank\'''s law)')
 plt.grid()
 plt.ylabel(r'Radiance [r.u.]')
+plt.ylim([0,200])
 plt.legend()
 plt.title('Calibration period: ' + dt64_to_str(time_cha[sel_time[0]])+' - '+dt64_to_str(time_cha[sel_time[-1]]))
 
@@ -113,6 +118,7 @@ plt.plot(wnum,mean_rad_bias,'k',label='Bias')
 plt.plot(wnum,mean_rad_err_SD,'b',label='Error St.Dev.')
 plt.plot(wnum,rad_BB*0.01,'--r',label='1% of BB emission')
 plt.plot(wnum,-rad_BB*0.01,'--r')
+plt.ylim([-2,10])
 plt.grid()
 plt.xlabel(r'$\tilde{\nu}$ [cm$^{-1}$]')
 plt.ylabel(r'Error in radiance [r.u.]')
