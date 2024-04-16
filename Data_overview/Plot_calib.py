@@ -27,7 +27,7 @@ matplotlib.rcParams['font.size'] = 16
 
 #%% Inputs
 assist_id=10#instrument ID
-date='2023-12-01'
+date='2023-12-03'
 setpoint=40#[C] temperature setpoint
 
 tol=0.5#[C] tolerance of Tb around setpoint to define valid calibration
@@ -64,9 +64,13 @@ T_985=Data_sum['mean_Tb_985_990'].values-273.15
 
 #define valid calibration period
 steady=np.where(np.abs(T_985-setpoint)<tol)[0]
+assert len(steady)>0
 if np.sum(np.diff(steady)>1)>0:
-    jumps1=np.append(0,np.where(np.diff(steady)>1)[0])
-    jumps2=np.append(np.where(np.diff(steady)>1)[0]-1,-1)
+    jumps1=np.append(0,np.where(np.diff(steady)>1)[0]+1)
+    jumps2=np.append(np.where(np.diff(steady)>1)[0],-1)
+else:
+    jumps1=[0]
+    jumps2=[-1]
 
 #channel A file
 time_cha=np.datetime64('1970-01-01T00:00:00')+Data_cha['base_time'].values*np.timedelta64(1,'ms')+Data_cha['time'].values*np.timedelta64(1,'s')
