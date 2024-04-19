@@ -28,6 +28,7 @@ matplotlib.rcParams['font.size'] = 14
 source_trp='data/TROPoe_T_{ID}.csv'
 source_met='data/Met_T_{ID}.csv'
 source_sum='data/Summary_T_{ID}.csv'
+source_inflow='data/20230101.000500-20240101.224500.awaken.sa1.summary.csv'
 start_time='2023-05-08 00:00:00.0'
 end_time='2023-10-16 00:00:00.0'
 time_res=30#min
@@ -88,6 +89,14 @@ for ID in IDs:
     Data_sum_synch=Data_sum_synch.rename(columns={'T_amb':'T_amb_'+str(ID)+'_sum'})
     Data_sum_synch=Data_sum_synch.rename(columns={'T_abb':'T_abb_'+str(ID)+'_sum'})
     Data=pd.merge(Data,Data_sum_synch,left_index=True,right_index=True)
+    
+print('Exctracting inflow data')
+Data_inf=pd.read_csv(source_inflow)
+Data_inf['Timenum']=np.array([SL.datenum(t,'%Y-%m-%d %H:%M:%S') for t in Data_inf['UTC Time'].values])
+Data_inf=Data_inf.set_index('Timenum').drop(columns=['UTC Time','LLJ flag']).replace(-9999,np.nan)
+Data_inf_synch=SL.resample_flex_v2_2(Data_inf, tnum1, tnum2, 'mean')
+
+Data=pd.merge(Data,Data_inf_synch,left_index=True,right_index=True)
 
 #%% Output
 Data['Time']=time

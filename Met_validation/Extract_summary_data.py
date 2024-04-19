@@ -29,8 +29,8 @@ matplotlib.rcParams['font.size'] = 14
 download=True
 username = 'sletizia'#ask DAP (dapteam@pnnl.gov)
 password = 'pass_DAP1506@'
-start_time='2023-07-26 00:00'
-end_time='2023-08-04 00:00'
+start_time='2023-05-08 00:00'
+end_time='2023-10-16 00:00'
 
 IDs=[10,11,12]
 channels={10:'awaken/sg.assist.z01.00',
