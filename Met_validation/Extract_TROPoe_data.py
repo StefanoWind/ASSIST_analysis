@@ -89,8 +89,10 @@ for ID in IDs:
     for i_gate in sel_gates:
         z_sel=np.round(T[ID].height.values[i_gate]*1000,1)
         T_sel=T[ID].values[:,i_gate]
+        sigma_T_sel=sigma_T[ID].values[:,i_gate]
         vres_sel=vres[ID].values[:,i_gate]*1000
         Output['T_'+str(z_sel)+'m']=T_sel
+        Output['sigma_T_'+str(z_sel)+'m']=sigma_T_sel
         Output['vres_'+str(z_sel)+'m']=vres_sel
     Output['Time']=T[ID].time
     Output.set_index('Time').to_csv('data/TROPoe_T_'+str(ID)+'.csv')
