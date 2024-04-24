@@ -31,6 +31,7 @@ sources={10:'/srv/data/nfs/assist/Assist-10/raw',
          12:'/srv/data/nfs/assist/Assist-12/raw'}
 start_date = '2022-10-01 00:00' # first date to process
 end_date =   '2023-11-01 00:00' # last date to process
+
 #%% Initialization
 
 
@@ -67,5 +68,5 @@ for ID in IDs:
         Output['T_abb']=T_abb
         Output['Time']=time
         
-        Output.set_index('Time').to_csv('/home/sletizia/codes/ASSIST_analysis/data/Summary_T_'+str(ID)+'.csv')
+        Output.set_index('Time').to_csv('/home/sletizia/codes/ASSIST_analysis/Met_validation/data/Summary_T_'+str(ID)+'.csv')
             
