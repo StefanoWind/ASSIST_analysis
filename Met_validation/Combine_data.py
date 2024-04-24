@@ -57,7 +57,7 @@ for ID in IDs:
     
     rename={}
     for c in Data_trp_int.columns:
-        rename[c]=c.replace('sigma_T_','sigma_T_'+str(ID)+'_').replace('T_','T_'+str(ID)+'_').replace('vres_','vres_'+str(ID)+'_')
+        rename[c]=c.replace('T_','T_'+str(ID)+'_').replace('vres_','vres_'+str(ID)+'_')
     Data_trp_int=Data_trp_int.rename(columns=rename)
     
     Data=pd.merge(Data,Data_trp_int,left_index=True,right_index=True)
