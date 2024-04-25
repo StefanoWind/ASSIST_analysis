@@ -15,7 +15,6 @@ import warnings
 import matplotlib 
 import xarray as xr
 import glob
-from datetime import datetime
 import matplotlib.dates as mdates
 
 warnings.filterwarnings('ignore')
@@ -26,7 +25,7 @@ matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 16
 
 #%% Inputs
-assist_id=11#instrument ID
+assist_id=12#instrument ID
 setpoint=40#[C] temperature setpoint
 
 tol=0.5#[C] tolerance of Tb around setpoint to define valid calibration
