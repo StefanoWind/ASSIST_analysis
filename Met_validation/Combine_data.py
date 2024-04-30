@@ -71,7 +71,9 @@ for ID in IDs:
 
     Data_met_synch=SL.resample_flex_v2_2(Data_met, tnum1, tnum2, 'mean')
     
-    Data_met_synch=Data_met_synch.rename(columns={'Temperature':'T_'+str(ID)+'_met'})
+    Data_met_synch=Data_met_synch.rename(columns={'temperature':'T_'+str(ID)+'_met',
+                                                  'wind_speed':'WS_'+str(ID)+'_met',
+                                                  'relative_humidity':'RH_'+str(ID)+'_met'})
     Data=pd.merge(Data,Data_met_synch,left_index=True,right_index=True)
 
 print('Exctracting inflow data')
