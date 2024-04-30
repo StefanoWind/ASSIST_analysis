@@ -4,3 +4,5 @@ __pycache__
 *.png
 *.csv
 *.xlsx
+*.txt
+*.pptx
