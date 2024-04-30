@@ -43,6 +43,19 @@ site_names={10:'North',
             11:'South',
             12:'Middle'}
 
+#%% Functions
+def met_uncertainty(T,WS):
+    unc_T1=np.zeros(len(T))
+    unc_T2=np.zeros(len(T))
+    
+    unc_T1=0.005*np.abs(T-20)+0.2
+    
+    ws=np.array([0,1,2,3,6,100])
+    unc_ws=np.array([1.51,1.51,0.7,0.4,0.2,0.2])
+    unc_T2=np.interp(WS,ws,unc_ws)
+    
+    return unc_T1+unc_T2
+    
 #%% Initialization
 Data=pd.read_csv(os.path.join(cd,source))
 Data['Time']=np.array([utl.num_to_dt64(utl.datenum(t,'%Y-%m-%d %H:%M:%S')+timezone*3600) for t in Data['Time'].values])
