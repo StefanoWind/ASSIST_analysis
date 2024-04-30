@@ -26,7 +26,7 @@ matplotlib.rcParams['font.size'] = 14
 
 #%% Inputs
 source_trp='data/TROPoe_T_{ID}.csv'
-source_met='data/Met_T_{ID}.csv'
+source_met='data/Met_T_WS_RH_{ID}.csv'
 source_inflow='data/20230101.000500-20240101.224500.awaken.glob.summary.csv'
 start_time='2023-05-08 00:00:00.0'
 end_time='2023-10-16 00:00:00.0'
@@ -72,7 +72,7 @@ for ID in IDs:
     Data_met_synch=SL.resample_flex_v2_2(Data_met, tnum1, tnum2, 'mean')
     
     Data_met_synch=Data_met_synch.rename(columns={'temperature':'T_'+str(ID)+'_met',
-                                                  'wind_speed':'WS_'+str(ID)+'_met',
+                                                  'average_wind_speed':'WS_'+str(ID)+'_met',
                                                   'relative_humidity':'RH_'+str(ID)+'_met'})
     Data=pd.merge(Data,Data_met_synch,left_index=True,right_index=True)
 
@@ -86,4 +86,4 @@ Data=pd.merge(Data,Data_inf_synch,left_index=True,right_index=True)
 
 #%% Output
 Data['Time']=time
-Data.set_index('Time').to_csv('data/All_T_shifted.csv')
+Data.set_index('Time').to_csv('data/All_T.csv')
