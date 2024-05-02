@@ -27,13 +27,16 @@ matplotlib.rcParams['font.size'] = 12
 
 #user
 calculate_importance=False
-max_DT_met=2
+shield_uncertainty=False
 
 #dataset
 source='data/All_T.csv'
 IDs=[11,12,10] #IDs of the ASSISTs
-var_names=[r'$T$ (met at 2 m) [$^\circ$C]',r'$\hat{T}$ (met at 2 m) [$^\circ$C]',r'$\tilde{T}$ (met at 2 m) [$^\circ$C]',
-           r'$\frac{\partial T }{\partial z}$ at the ground [$^\circ$C m$^{-1}$]','Hour',r'$\overline{u}$ (hub height) [m s$^{-1}$]',r'$\overline{\theta}_w$ [$^\circ$]',r'$\overline{u}$ (met) [m s$^{-1}$]']
+_vars=['T_{ID}_met','T_daily_avg_{ID}_met','T_det_{ID}_met','DT_dz_{ID}','hour',
+       'Hub-height wind speed [m/s]','Hub-height wind direction [degrees]','WS_{ID}_met',
+       'T_abb_{ID}_sum','T_frontend_{ID}_sum','NEN_{ID}_sum']
+
+
 
 WS_cutin=3#[m/s] cutin wind speed (KP+AF)
 WS_rated=12#[m/s] rated wind speed (KP+AF)
@@ -49,38 +52,68 @@ N_bins=10
 skip=5
 ID_comb=[[11,10],[11,12],[12,10]]
 N_days_plot=7
+
 site_names={10:'North',
             11:'South',
             12:'Middle'}
-
 colors={10:'g',11:'r',12:'b'}
-limits={0:[0,50],
-        1:[0,50],
-        2:[10,10],
-        3:[-0.25,0.25],
-        4:[0,23],
-        5:[0,20],
-        6:[0,360],
-        7:[0,10]}
 
-xticks={0:[0,10,20,30,40,50],
-        1:[0,10,20,30,40,50],
-        2:[-10,-5,0,5,10],
-        3:[-0.25,0,0.25],
-        4:[0,6,12,18,24],
-        5:np.arange(0,21,5),
-        6:[0,90,180,270,360],
-        7:[0,5,10]}
+labels={'T_{ID}_met':r'$T$ (met at 2 m) [$^\circ$C]',
+        'T_daily_avg_{ID}_met':r'$\hat{T}$ (met at 2 m) [$^\circ$C]',
+        'T_det_{ID}_met':r'$\tilde{T}$ (met at 2 m) [$^\circ$C]',
+        'DT_dz_{ID}':r'$\frac{\partial T }{\partial z}$ at the ground [$^\circ$C m$^{-1}$]',
+        'hour':'Hour',
+        'Hub-height wind speed [m/s]':r'$\overline{u}$ (hub height) [m s$^{-1}$]',
+        'Hub-height wind direction [degrees]':r'$\overline{\theta}_w$ (hub height)[$^\circ$]',
+        'WS_{ID}_met':r'$\overline{u}$ (met at 3 m) [m s$^{-1}$]',
+        'T_abb_{ID}_sum':r'$T$ (ABB) [$^\circ$C]',
+        'T_frontend_{ID}_sum':r'$T$ (frontend) [$^\circ$C]',
+        'NEN_{ID}_sum':'NEN'}
+
+limits={'T_{ID}_met':[0,50],
+        'T_daily_avg_{ID}_met':[0,50],
+        'T_det_{ID}_met':[10,10],
+        'DT_dz_{ID}':[-0.25,0.25],
+        'hour':[0,23],
+        'Hub-height wind speed [m/s]':[0,20],
+        'Hub-height wind direction [degrees]':[0,360],
+        'WS_{ID}_met':[0,10],
+        'T_abb_{ID}_sum':[0,50],
+        'T_frontend_{ID}_sum':[0,50],
+        'NEN_{ID}_sum':[0,1],}
+
+xticks={'T_{ID}_met':[0,10,20,30,40,50],
+        'T_daily_avg_{ID}_met':[0,10,20,30,40,50],
+        'T_det_{ID}_met':[-10,-5,0,5,10],
+        'DT_dz_{ID}':[-0.25,0,0.25],
+        'hour':[0,6,12,18,24],
+        'Hub-height wind speed [m/s]':np.arange(0,21,5),
+        'Hub-height wind direction [degrees]':[0,90,180,270,360],
+        'WS_{ID}_met':[0,5,10],
+        'T_abb_{ID}_sum':[0,10,20,30,40,50],
+        'T_frontend_{ID}_sum':[0,10,20,30,40,50],
+        'NEN_{ID}_sum':[0,0.5,1]}
+
+#%% Functions
+def met_uncertainty(T,WS,shield_uncertainty):
+    unc_T1=np.zeros(len(T))
+    unc_T2=np.zeros(len(T))
+    
+    unc_T1=0.005*np.abs(T-20)+0.2
+    
+    if shield_uncertainty:
+        ws=np.array([0,1,2,3,6,100])
+        unc_ws=np.array([1.51,1.51,0.7,0.4,0.2,0.2])
+        unc_T2=np.interp(WS,ws,unc_ws)
+    else:
+        unc_T2=0
+    
+    return unc_T1+unc_T2
 
 #%% Initialization
 Data=pd.read_csv(os.path.join(cd,source))
 Data['Time']=np.array([utl.num_to_dt64(utl.datenum(t,'%Y-%m-%d %H:%M:%S')+timezone*3600) for t in Data['Time'].values])
 Data=Data.set_index('Time')
-
-dt=np.nanmedian(np.diff(Data.index))
-assert np.nanmax(np.diff(Data.index))==np.nanmin(np.diff(Data.index))
-Data_daily_avg=Data.rolling(window=int(np.timedelta64(1,'D')/dt)).mean()
-Data_det=Data-Data_daily_avg
 
 #remove high uncertainty
 for ID in IDs:
@@ -90,52 +123,61 @@ for ID in IDs:
     Data['T_'+str(ID)+'_10.0m'][Data['sigma_T_'+str(ID)+'_10.0m']>max_sigma_T]=np.nan
     Data['sigma_T_'+str(ID)+'_10.0m'][Data['sigma_T_'+str(ID)+'_10.0m']>max_sigma_T]=np.nan
     
-#%% Main
-WS=Data['Hub-height wind speed [m/s]']
-WD=Data['Hub-height wind direction [degrees]']
-regionI=WS<WS_cutin
-regionII=(WS>=WS_cutin)*(WS<WS_rated)
-regionIII=(WS>=WS_rated)*(WS<WS_cutout)
+    Data['sigma_T_'+str(ID)+'_met']=met_uncertainty(Data['T_'+str(ID)+'_met'],Data['WS_'+str(ID)+'_met'],shield_uncertainty)
+    Data['T_'+str(ID)+'_met'][Data['sigma_T_'+str(ID)+'_met']>max_sigma_T]=np.nan
+    Data['sigma_T_'+str(ID)+'_met'][Data['sigma_T_'+str(ID)+'_met']>max_sigma_T]=np.nan
+    
+n_features=len(_vars)
 
-hour=np.array([t.hour+t.minute/60 for t in Data.index])
+#%% Main
+
+#add missing features
+Data['hour']=np.array([t.hour+t.minute/60 for t in Data.index])
+
+dt=np.nanmedian(np.diff(Data.index))
+assert np.nanmax(np.diff(Data.index))==np.nanmin(np.diff(Data.index))
+Data_daily_avg=Data.rolling(window=int(np.timedelta64(1,'D')/dt)).mean()
+Data_det=Data-Data_daily_avg
+
+for ID in IDs:
+    Data['DT_{ID}'.format(ID=ID)]=Data['T_'+str(ID)+'_0.0m']-Data['T_'+str(ID)+'_met']
+    Data['DT_dz_{ID}'.format(ID=ID)]=(Data['T_'+str(ID)+'_10.0m']-Data['T_'+str(ID)+'_0.0m'])/10
+    Data['T_daily_avg_{ID}_met'.format(ID=ID)]=Data_daily_avg['T_{ID}_met'.format(ID=ID)]
+    Data['T_det_{ID}_met'.format(ID=ID)]=Data_det['T_{ID}_met'.format(ID=ID)]
 
 if calculate_importance:
     importance={}
     importance_std={}
+    
 fig=plt.figure(figsize=(18,10))
-ctr=0
+
 for ID in IDs:
-    DT=Data['T_'+str(ID)+'_0.0m']-Data['T_'+str(ID)+'_met']
-    DT_dz=(Data['T_'+str(ID)+'_10.0m']-Data['T_'+str(ID)+'_0.0m'])/10
-    
-    X=np.hstack((Data['T_'+str(ID)+'_met'].values.reshape(-1,1),
-                 Data_daily_avg['T_'+str(ID)+'_met'].values.reshape(-1,1),
-                 Data_det['T_'+str(ID)+'_met'].values.reshape(-1,1),
-                 DT_dz.values.reshape(-1,1),
-                 hour.reshape(-1,1),
-                 WS.values.reshape(-1,1),
-                 WD.values.reshape(-1,1),
-                 Data['WS_'+str(ID)+'_met'].values.reshape(-1,1)))
-    
-    assert len(X[0,:])==n_features, "Wrong number of features"
-    
     if calculate_importance:
-        importance[ID],importance_std[ID],*_=utl.RF_feature_selector(X,DT.values)
+        X=[]
+        for v in _vars:
+            if X==[]:
+                X=Data[v.format(ID=ID)].values.reshape(-1,1)
+            else:
+                X=np.hstack((X,Data[v.format(ID=ID)].values.reshape(-1,1)))
+        
+        y= Data['DT_'+str(ID)].values
+        
+        importance[ID],importance_std[ID],*_=utl.RF_feature_selector(X,y)
     
     #plot single-variable trends
-    for i_x in range(n_features):
-        plt.subplot(len(IDs),n_features,ctr*n_features+i_x+1)
-        plt.plot(X[:,i_x],DT.values,'.k',alpha=0.05)
-        utl.simple_bins(X[:,i_x],DT.values,bins=25)
-        plt.xlabel(var_names[i_x])
+    ctr=1
+    for v in _vars:
+        plt.subplot(len(IDs),n_features,np.where(ID==np.array(IDs))[0][0]*n_features+ctr)
+        utl.simple_bins(Data[v.format(ID=ID)].values,Data['DT_{ID}'.format(ID=ID)].values,bins=25)
+        plt.xlabel(labels[v],rotation=45)
         plt.ylabel(r'$\Delta T$ (TROPoe-met) '+'\n'+ 'at '+site_names[ID]+' [$^\circ$C]')
         plt.grid()
-        plt.xlim(limits[i_x])
-        plt.ylim([-4,4])
-        plt.xticks(xticks[i_x])
-    ctr+=1
+        plt.xlim(limits[v])
+        plt.ylim([-2,2])
+        plt.xticks(xticks[v])
+        ctr+=1
 utl.remove_labels(fig)
-
+plt.tight_layout()
     
 #%% Plots
 
@@ -146,31 +188,31 @@ if calculate_importance:
         plt.bar(np.arange(n_features)*3-0.5*(ctr-1),importance[ID],yerr=importance_std[ID],color=colors[ID],capsize=5,linewidth=2,width=0.5,label=site_names[ID])
         ctr+=1
     plt.legend()
-    plt.xticks(np.arange(n_features)*3,var_names)
+    plt.xticks(np.arange(n_features)*3,[labels[v] for v in +vars])
     plt.grid()
 
 #daily cycles
-plt.figure(figsize=(18,10))
-ctr=0
-for ID in IDs:
-    DT=Data['T_'+str(ID)+'_0.0m']-Data['T_'+str(ID)+'_met']
-    DT_dz=(Data['T_'+str(ID)+'_10.0m']-Data['T_'+str(ID)+'_0.0m'])/10
+# plt.figure(figsize=(18,10))
+# ctr=0
+# for ID in IDs:
+#     DT=Data['T_'+str(ID)+'_0.0m']-Data['T_'+str(ID)+'_met']
+#     DT_dz=(Data['T_'+str(ID)+'_10.0m']-Data['T_'+str(ID)+'_0.0m'])/10
     
-    plt.subplot(len(IDs),4,ctr*4+1)
-    plt.plot(hour,Data['T_'+str(ID)+'_met'],'.k',alpha=0.05)
-    utl.simple_bins(hour,Data['T_'+str(ID)+'_met'],bins=25)
-    plt.ylabel(r'$T$ (met at 2 m) [$^\circ$C]')
+#     plt.subplot(len(IDs),4,ctr*4+1)
+#     plt.plot(hour,Data['T_'+str(ID)+'_met'],'.k',alpha=0.05)
+#     utl.simple_bins(hour,Data['T_'+str(ID)+'_met'],bins=25)
+#     plt.ylabel(r'$T$ (met at 2 m) [$^\circ$C]')
     
-    plt.subplot(len(IDs),4,ctr*4+2)
-    plt.plot(hour,Data_det['T_'+str(ID)+'_met'],'.k',alpha=0.05)
-    utl.simple_bins(hour,Data_det['T_'+str(ID)+'_met'],bins=25)
+#     plt.subplot(len(IDs),4,ctr*4+2)
+#     plt.plot(hour,Data_det['T_'+str(ID)+'_met'],'.k',alpha=0.05)
+#     utl.simple_bins(hour,Data_det['T_'+str(ID)+'_met'],bins=25)
     
-    plt.subplot(len(IDs),4,ctr*4+3)
-    plt.plot(hour,DT_dz,'.k',alpha=0.05)
-    utl.simple_bins(hour,DT_dz,bins=25)
+#     plt.subplot(len(IDs),4,ctr*4+3)
+#     plt.plot(hour,DT_dz,'.k',alpha=0.05)
+#     utl.simple_bins(hour,DT_dz,bins=25)
     
-    plt.subplot(len(IDs),4,ctr*4+4)
-    plt.plot(hour,DT,'.k',alpha=0.05)
-    utl.simple_bins(hour,DT,bins=25)
-    ctr+=1
+#     plt.subplot(len(IDs),4,ctr*4+4)
+#     plt.plot(hour,DT,'.k',alpha=0.05)
+#     utl.simple_bins(hour,DT,bins=25)
+#     ctr+=1
     
