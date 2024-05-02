@@ -28,7 +28,7 @@ matplotlib.rcParams['font.size'] = 14
 source='data/All_T.csv'
 IDs=[11,12,10] #IDs of the ASSISTs
 plot_all=True
-shield_uncertainty=False
+shield_uncertainty=True
 
 p_value=0.05 #p-vakue ofr confidence interval
 WS_cutin=3#[m/s] cutin wind speed (KP+AF)

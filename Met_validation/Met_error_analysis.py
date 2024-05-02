@@ -15,7 +15,6 @@ from matplotlib import pyplot as plt
 import warnings
 import matplotlib
 import pandas as pd
-from scipy import stats
 
 warnings.filterwarnings('ignore')
 plt.close('all')
@@ -27,14 +26,14 @@ matplotlib.rcParams['font.size'] = 12
 #%% Inputs
 
 #user
-calculate_importance=True
+calculate_importance=False
 max_DT_met=2
 
 #dataset
 source='data/All_T.csv'
 IDs=[11,12,10] #IDs of the ASSISTs
 var_names=[r'$T$ (met at 2 m) [$^\circ$C]',r'$\hat{T}$ (met at 2 m) [$^\circ$C]',r'$\tilde{T}$ (met at 2 m) [$^\circ$C]',
-           r'$\frac{\partial T }{\partial z}$ at the ground [$^\circ$C m$^{-1}$]','Hour',r'$\overline{u}$ [m s$^{-1}$]',r'$\overline{\theta}_w$ [$^\circ$]']
+           r'$\frac{\partial T }{\partial z}$ at the ground [$^\circ$C m$^{-1}$]','Hour',r'$\overline{u}$ (hub height) [m s$^{-1}$]',r'$\overline{\theta}_w$ [$^\circ$]',r'$\overline{u}$ (met) [m s$^{-1}$]']
 
 WS_cutin=3#[m/s] cutin wind speed (KP+AF)
 WS_rated=12#[m/s] rated wind speed (KP+AF)
@@ -43,7 +42,7 @@ max_sigma_T=5#[K] maximum uncertainty
 timezone=-6#[hours] difference local time - UTC
 
 #stats
-n_features=7
+n_features=8
 N_bins=10
 
 # graphics
@@ -61,17 +60,17 @@ limits={0:[0,50],
         3:[-0.25,0.25],
         4:[0,23],
         5:[0,20],
-        6:[0,360]}
+        6:[0,360],
+        7:[0,10]}
 
 xticks={0:[0,10,20,30,40,50],
         1:[0,10,20,30,40,50],
         2:[-10,-5,0,5,10],
-        3:np.arange(-0.3,0.31,0.1),
+        3:[-0.25,0,0.25],
         4:[0,6,12,18,24],
         5:np.arange(0,21,5),
-        6:[0,90,180,270,360]}
-
-
+        6:[0,90,180,270,360],
+        7:[0,5,10]}
 
 #%% Initialization
 Data=pd.read_csv(os.path.join(cd,source))
@@ -94,8 +93,6 @@ for ID in IDs:
 #%% Main
 WS=Data['Hub-height wind speed [m/s]']
 WD=Data['Hub-height wind direction [degrees]']
-U=(utl.cosd(270-WD)*WS)
-V=(utl.sind(270-WD)*WS)
 regionI=WS<WS_cutin
 regionII=(WS>=WS_cutin)*(WS<WS_rated)
 regionIII=(WS>=WS_rated)*(WS<WS_cutout)
@@ -117,16 +114,19 @@ for ID in IDs:
                  DT_dz.values.reshape(-1,1),
                  hour.reshape(-1,1),
                  WS.values.reshape(-1,1),
-                 WD.values.reshape(-1,1)))
+                 WD.values.reshape(-1,1),
+                 Data['WS_'+str(ID)+'_met'].values.reshape(-1,1)))
     
     assert len(X[0,:])==n_features, "Wrong number of features"
     
     if calculate_importance:
         importance[ID],importance_std[ID],*_=utl.RF_feature_selector(X,DT.values)
     
+    #plot single-variable trends
     for i_x in range(n_features):
         plt.subplot(len(IDs),n_features,ctr*n_features+i_x+1)
         plt.plot(X[:,i_x],DT.values,'.k',alpha=0.05)
+        utl.simple_bins(X[:,i_x],DT.values,bins=25)
         plt.xlabel(var_names[i_x])
         plt.ylabel(r'$\Delta T$ (TROPoe-met) '+'\n'+ 'at '+site_names[ID]+' [$^\circ$C]')
         plt.grid()
@@ -158,15 +158,19 @@ for ID in IDs:
     
     plt.subplot(len(IDs),4,ctr*4+1)
     plt.plot(hour,Data['T_'+str(ID)+'_met'],'.k',alpha=0.05)
-    plt.title(site_names[ID])
+    utl.simple_bins(hour,Data['T_'+str(ID)+'_met'],bins=25)
+    plt.ylabel(r'$T$ (met at 2 m) [$^\circ$C]')
     
     plt.subplot(len(IDs),4,ctr*4+2)
     plt.plot(hour,Data_det['T_'+str(ID)+'_met'],'.k',alpha=0.05)
+    utl.simple_bins(hour,Data_det['T_'+str(ID)+'_met'],bins=25)
     
     plt.subplot(len(IDs),4,ctr*4+3)
     plt.plot(hour,DT_dz,'.k',alpha=0.05)
+    utl.simple_bins(hour,DT_dz,bins=25)
     
     plt.subplot(len(IDs),4,ctr*4+4)
     plt.plot(hour,DT,'.k',alpha=0.05)
+    utl.simple_bins(hour,DT,bins=25)
     ctr+=1
     
