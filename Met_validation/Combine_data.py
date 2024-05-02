@@ -27,6 +27,7 @@ matplotlib.rcParams['font.size'] = 14
 #%% Inputs
 source_trp='data/TROPoe_T_{ID}.csv'
 source_met='data/Met_T_WS_RH_{ID}.csv'
+source_sum='data/Summary_T_{ID}.csv'
 source_inflow='data/20230101.000500-20240101.224500.awaken.glob.summary.csv'
 start_time='2023-05-08 00:00:00.0'
 end_time='2023-10-16 00:00:00.0'
@@ -61,6 +62,21 @@ for ID in IDs:
     Data_trp_int=Data_trp_int.rename(columns=rename)
     
     Data=pd.merge(Data,Data_trp_int,left_index=True,right_index=True)
+
+print('Extracting summary data')
+for ID in IDs:
+    Data_sum=pd.read_csv(source_sum.format(ID=ID))
+    Data_sum['Timenum']=np.array([SL.datenum(t[:-10],'%Y-%m-%d %H:%M:%S') for t in Data_sum['Time'].values])
+    
+    Data_sum=Data_sum.set_index('Timenum').drop(columns='Time')
+    Data_sum_synch=SL.resample_flex_v2_2(Data_sum, tnum1, tnum2, 'mean')
+    
+    Data_sum_synch=Data_sum_synch.rename(columns={'T_675':'T_675_'+str(ID)+'_sum',
+                                                  'T_frontend':'T_frontend_'+str(ID)+'_sum',
+                                                  'T_abb':'T_abb_'+str(ID)+'_sum',
+                                                  'NEN':'NEN_'+str(ID)+'_sum'})
+
+    Data=pd.merge(Data,Data_sum_synch,left_index=True,right_index=True)
     
 print('Extracting met data')
 for ID in IDs:
@@ -70,7 +86,6 @@ for ID in IDs:
     Data_met=Data_met.set_index('Timenum').drop(columns='Time')
 
     Data_met_synch=SL.resample_flex_v2_2(Data_met, tnum1, tnum2, 'mean')
-    
     Data_met_synch=Data_met_synch.rename(columns={'temperature':'T_'+str(ID)+'_met',
                                                   'average_wind_speed':'WS_'+str(ID)+'_met',
                                                   'relative_humidity':'RH_'+str(ID)+'_met'})
