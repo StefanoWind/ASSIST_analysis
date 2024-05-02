@@ -36,8 +36,6 @@ _vars=['T_{ID}_met','T_daily_avg_{ID}_met','T_det_{ID}_met','DT_dz_{ID}','hour',
        'Hub-height wind speed [m/s]','Hub-height wind direction [degrees]','WS_{ID}_met',
        'T_abb_{ID}_sum','T_frontend_{ID}_sum','NEN_{ID}_sum']
 
-
-
 WS_cutin=3#[m/s] cutin wind speed (KP+AF)
 WS_rated=12#[m/s] rated wind speed (KP+AF)
 WS_cutout=20#[m/s] cutout wind speed (KP+AF)
@@ -56,6 +54,7 @@ N_days_plot=7
 site_names={10:'North',
             11:'South',
             12:'Middle'}
+
 colors={10:'g',11:'r',12:'b'}
 
 labels={'T_{ID}_met':r'$T$ (met at 2 m) [$^\circ$C]',
@@ -149,8 +148,7 @@ if calculate_importance:
     importance={}
     importance_std={}
     
-fig=plt.figure(figsize=(18,10))
-
+fig=plt.figure(figsize=(18,6))
 for ID in IDs:
     if calculate_importance:
         X=[]
@@ -169,7 +167,7 @@ for ID in IDs:
     for v in _vars:
         plt.subplot(len(IDs),n_features,np.where(ID==np.array(IDs))[0][0]*n_features+ctr)
         utl.simple_bins(Data[v.format(ID=ID)].values,Data['DT_{ID}'.format(ID=ID)].values,bins=25)
-        plt.xlabel(labels[v],rotation=45)
+        plt.xlabel(labels[v],rotation=20)
         plt.ylabel(r'$\Delta T$ (TROPoe-met) '+'\n'+ 'at '+site_names[ID]+' [$^\circ$C]')
         plt.grid()
         plt.xlim(limits[v])
@@ -180,7 +178,6 @@ utl.remove_labels(fig)
 plt.tight_layout()
     
 #%% Plots
-
 if calculate_importance:
     plt.figure()
     ctr=0
@@ -190,29 +187,3 @@ if calculate_importance:
     plt.legend()
     plt.xticks(np.arange(n_features)*3,[labels[v] for v in +vars])
     plt.grid()
-
-#daily cycles
-# plt.figure(figsize=(18,10))
-# ctr=0
-# for ID in IDs:
-#     DT=Data['T_'+str(ID)+'_0.0m']-Data['T_'+str(ID)+'_met']
-#     DT_dz=(Data['T_'+str(ID)+'_10.0m']-Data['T_'+str(ID)+'_0.0m'])/10
-    
-#     plt.subplot(len(IDs),4,ctr*4+1)
-#     plt.plot(hour,Data['T_'+str(ID)+'_met'],'.k',alpha=0.05)
-#     utl.simple_bins(hour,Data['T_'+str(ID)+'_met'],bins=25)
-#     plt.ylabel(r'$T$ (met at 2 m) [$^\circ$C]')
-    
-#     plt.subplot(len(IDs),4,ctr*4+2)
-#     plt.plot(hour,Data_det['T_'+str(ID)+'_met'],'.k',alpha=0.05)
-#     utl.simple_bins(hour,Data_det['T_'+str(ID)+'_met'],bins=25)
-    
-#     plt.subplot(len(IDs),4,ctr*4+3)
-#     plt.plot(hour,DT_dz,'.k',alpha=0.05)
-#     utl.simple_bins(hour,DT_dz,bins=25)
-    
-#     plt.subplot(len(IDs),4,ctr*4+4)
-#     plt.plot(hour,DT,'.k',alpha=0.05)
-#     utl.simple_bins(hour,DT,bins=25)
-#     ctr+=1
-    
