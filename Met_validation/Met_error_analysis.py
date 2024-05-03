@@ -26,7 +26,7 @@ matplotlib.rcParams['font.size'] = 12
 #%% Inputs
 
 #user
-calculate_importance=False
+calculate_importance=True
 shield_uncertainty=False
 active_features=[0,1,2,3,4,5,6,7,10]#feature to consider
 pairs=[[0,3],#pairs of features for 2D plots
@@ -48,10 +48,6 @@ max_sigma_T=5#[K] maximum uncertainty
 timezone=-6#[hours] difference local time - UTC
 
 # graphics
-skip=5
-ID_comb=[[11,10],[11,12],[12,10]]
-N_days_plot=7
-
 site_names={10:'North',
             11:'South',
             12:'Middle'}
@@ -167,14 +163,16 @@ for ID in IDs:
     
 #%% Plots
 if calculate_importance:
-    plt.figure()
+    plt.figure(figsize=(18,6))
     ctr=0
     for ID in IDs:
         plt.bar(np.arange(n_features)*3-0.5*(ctr-1),importance[ID],yerr=importance_std[ID],color=colors[ID],capsize=5,linewidth=2,width=0.5,label=site_names[ID])
         ctr+=1
     plt.legend()
-    plt.xticks(np.arange(n_features)*3,[labels[v] for v in +_vars])
+    plt.xticks(np.arange(n_features)*3,[labels[v] for v in +_vars],rotation=20)
+    plt.ylabel('Permutation importance')
     plt.grid()
+    plt.tight_layout()
     
 #correlation matrix
 fig=plt.figure(figsize=(18,10))
