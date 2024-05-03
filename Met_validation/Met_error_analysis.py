@@ -28,11 +28,11 @@ matplotlib.rcParams['font.size'] = 12
 #user
 calculate_importance=False
 shield_uncertainty=False
-active_features=[0,1,2,3,4,5,6,7,10]
-pairs=[[0,3],
+active_features=[0,1,2,3,4,5,6,7,10]#feature to consider
+pairs=[[0,3],#pairs of features for 2D plots
        [4,0],
-       [4,2],
-       [4,3]]
+       [4,3],
+       [4,7]]
 
 #dataset
 source='data/All_T.csv'
@@ -46,10 +46,6 @@ WS_rated=12#[m/s] rated wind speed (KP+AF)
 WS_cutout=20#[m/s] cutout wind speed (KP+AF)
 max_sigma_T=5#[K] maximum uncertainty
 timezone=-6#[hours] difference local time - UTC
-
-#stats
-n_features=8
-N_bins=10
 
 # graphics
 skip=5
@@ -65,7 +61,7 @@ colors={10:'g',11:'r',12:'b'}
 labels={'T_{ID}_met':r'$T$ (met at 2 m) [$^\circ$C]',
         'T_daily_avg_{ID}_met':r'$\hat{T}$ (met at 2 m) [$^\circ$C]',
         'T_det_{ID}_met':r'$\tilde{T}$ (met at 2 m) [$^\circ$C]',
-        'DT_dz_{ID}':r'$\frac{\partial T }{\partial z}$ at the ground [$^\circ$C m$^{-1}$]',
+        'DT_dz_{ID}':r'$\frac{\partial T}{\partial z}$ at the ground [$^\circ$C m$^{-1}$]',
         'hour':'Hour',
         'Hub-height wind speed [m/s]':r'$\overline{u}$ (hub height) [m s$^{-1}$]',
         'Hub-height wind direction [degrees]':r'$\overline{\theta}_w$ (hub height)[$^\circ$]',
@@ -137,7 +133,6 @@ n_features=len(_vars)
 
 #%% Main
 
-
 #add missing features
 Data['hour']=np.array([t.hour+t.minute/60 for t in Data.index])
 
@@ -151,8 +146,6 @@ for ID in IDs:
     Data['DT_dz_{ID}'.format(ID=ID)]=(Data['T_'+str(ID)+'_10.0m']-Data['T_'+str(ID)+'_0.0m'])/10
     Data['T_daily_avg_{ID}_met'.format(ID=ID)]=Data_daily_avg['T_{ID}_met'.format(ID=ID)]
     Data['T_det_{ID}_met'.format(ID=ID)]=Data_det['T_{ID}_met'.format(ID=ID)]
-
-utl.lag(Data['DT_10'].values,Data['DT_10'].values)
 
 if calculate_importance:
     importance={}
@@ -183,6 +176,7 @@ if calculate_importance:
     plt.xticks(np.arange(n_features)*3,[labels[v] for v in +_vars])
     plt.grid()
     
+#correlation matrix
 fig=plt.figure(figsize=(18,10))
 for ID in IDs:
     ax=plt.subplot(1,len(IDs),np.where(ID==np.array(IDs))[0][0]+1)
@@ -198,7 +192,7 @@ for ID in IDs:
 utl.remove_labels(fig) 
 plt.tight_layout()
 
-
+#1-D plots
 fig=plt.figure(figsize=(18,6))
 for ID in IDs:
     ctr=1
