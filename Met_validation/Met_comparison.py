@@ -28,7 +28,7 @@ matplotlib.rcParams['font.size'] = 14
 source='data/All_T.csv'
 IDs=[11,12,10] #IDs of the ASSISTs
 plot_all=True
-shield_uncertainty=True
+shield_uncertainty=False
 
 p_value=0.05 #p-vakue ofr confidence interval
 WS_cutin=3#[m/s] cutin wind speed (KP+AF)
@@ -145,7 +145,7 @@ if plot_all:
         plt.savefig(os.path.join(cd,'figures','Met_comparison_T',utl.datestr(utl.dt64_to_num(t1),'%Y%m%d')+'-'+utl.datestr(utl.dt64_to_num(t2),'%Y%m%d')+'_T_met_comparison.png'))
         plt.close()
     
-    
+    #site-to-site difference
     for t1,t2 in zip(time_bins[:-1],time_bins[1:]):
         sel=(Data.index>t1)*(Data.index<=t2)
         fig=plt.figure(figsize=(18,10))
@@ -177,7 +177,6 @@ if plot_all:
             DT=Data['T_'+str(ID2)+'_0.0m'][sel]-Data['T_'+str(ID1)+'_0.0m'][sel]
             sigma_T_diff=(Data['sigma_T_'+str(ID1)+'_0.0m'].values[sel]**2+Data['sigma_T_'+str(ID2)+'_0.0m'].values[sel]**2)**0.5
             plt.plot(DT,'b',label='TROPoe at 0 m')
-           
             plt.fill_between(Data.index[sel], DT.values-(-norm.ppf(p_value/2))*sigma_T_diff,
                                               DT.values+(-norm.ppf(p_value/2))*sigma_T_diff,
                                               color='b',alpha=0.25)
@@ -204,6 +203,65 @@ if plot_all:
         if not os.path.exists(os.path.join(cd,'figures','Met_comparison_DeltaT')):
             os.mkdir(os.path.join(cd,'figures','Met_comparison_DeltaT'))
         plt.savefig(os.path.join(cd,'figures','Met_comparison_DeltaT',utl.datestr(utl.dt64_to_num(t1),'%Y%m%d')+'-'+utl.datestr(utl.dt64_to_num(t2),'%Y%m%d')+'_DeltaT_met_comparison.png'))
+        plt.close()
+        
+    #TROPoe-to-met difference
+    for t1,t2 in zip(time_bins[:-1],time_bins[1:]):
+        sel=(Data.index>t1)*(Data.index<=t2)
+        fig=plt.figure(figsize=(18,10))
+        gs = fig.add_gridspec(4, 1, width_ratios=[1], height_ratios=[0.75, 2,2,2], wspace=0.5, hspace=0.25,bottom=0.05, top=0.95)
+        
+        ax = fig.add_subplot(gs[0, 0])
+        plt.barbs(Data.index.values[sel*regionI][::skip],  np.zeros(len(U.values[sel*regionI][::skip])),  U.values[sel*regionI][::skip]*1.94,  V.values[sel*regionI][::skip]*1.94,  length=6,alpha=0.25)
+        plt.barbs(Data.index.values[sel*regionII][::skip], np.zeros(len(U.values[sel*regionII][::skip])), U.values[sel*regionII][::skip]*1.94, V.values[sel*regionII][::skip]*1.94, length=6,alpha=1)
+        plt.barbs(Data.index.values[sel*regionIII][::skip],np.zeros(len(U.values[sel*regionIII][::skip])),U.values[sel*regionIII][::skip]*1.94,V.values[sel*regionIII][::skip]*1.94,length=6,alpha=0.5)
+        ax.set_xticklabels([])
+        plt.yticks([])
+        plt.ylim([-1.5,1.5])
+        ctr=1
+    
+        for ID in IDs:
+
+            ax = fig.add_subplot(gs[ctr, 0]) 
+            
+            DT=Data['T_'+str(ID)+'_0.0m'][sel]-Data['T_'+str(ID)+'_met'][sel]
+            sigma_T_diff=(Data['sigma_T_'+str(ID)+'_0.0m'].values[sel]**2+Data['sigma_T_'+str(ID)+'_met'].values[sel]**2)**0.5
+            plt.plot(DT,'k',label='TROPoe at 0 m - met at 2 m')
+            plt.fill_between(Data.index[sel], DT.values-(-norm.ppf(p_value/2))*sigma_T_diff,
+                                              DT.values+(-norm.ppf(p_value/2))*sigma_T_diff,
+                                              color='k',alpha=0.25)
+            
+            DT=Data['T_'+str(ID)+'_10.0m'][sel]-Data['T_'+str(ID)+'_met'][sel]
+            sigma_T_diff=(Data['sigma_T_'+str(ID)+'_10.0m'].values[sel]**2+Data['sigma_T_'+str(ID)+'_met'].values[sel]**2)**0.5
+            plt.plot(DT,'b',label='TROPoe at 10 m - met at 2 m')
+            plt.fill_between(Data.index[sel], DT.values-(-norm.ppf(p_value/2))*sigma_T_diff,
+                                              DT.values+(-norm.ppf(p_value/2))*sigma_T_diff,
+                                              color='b',alpha=0.25)
+            
+            DT=Data['T_'+str(ID)+'_10.0m'][sel]-Data['T_'+str(ID)+'_0.0m'][sel]
+            sigma_T_diff=(Data['sigma_T_'+str(ID)+'_10.0m'].values[sel]**2+Data['sigma_T_'+str(ID)+'_0.0m'].values[sel]**2)**0.5
+            plt.plot(DT,'r',label='TROPoe at 10 m - TROPoe at 0 m')
+            plt.fill_between(Data.index[sel], DT.values-(-norm.ppf(p_value/2))*sigma_T_diff,
+                                              DT.values+(-norm.ppf(p_value/2))*sigma_T_diff,
+                                              color='r',alpha=0.25)
+    
+            plt.ylabel(r'$\Delta T$ [$^\circ$C]')
+            
+            plt.yscale('symlog')
+            plt.title(site_names[ID])
+            plt.grid()
+            plt.xlim([t1,t2])
+            plt.ylim([-2.5,2.5])
+            plt.yticks([-2.5,-1,0,1,2.5],labels=['-2.5','-1','0','1','2.5'])
+            if ctr<3:
+                ax.set_xticklabels([])
+            ctr+=1
+        plt.legend()
+        plt.xlabel('Time (CST)')
+        
+        if not os.path.exists(os.path.join(cd,'figures','Met_comparison_errT')):
+            os.mkdir(os.path.join(cd,'figures','Met_comparison_errT'))
+        plt.savefig(os.path.join(cd,'figures','Met_comparison_errT',utl.datestr(utl.dt64_to_num(t1),'%Y%m%d')+'-'+utl.datestr(utl.dt64_to_num(t2),'%Y%m%d')+'_errT_met_comparison.png'))
         plt.close()
     
 #linear fits of temperature
