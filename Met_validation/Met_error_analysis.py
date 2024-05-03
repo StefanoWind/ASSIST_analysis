@@ -28,6 +28,11 @@ matplotlib.rcParams['font.size'] = 12
 #user
 calculate_importance=False
 shield_uncertainty=False
+active_features=[0,1,2,3,4,5,6,7,10]
+pairs=[[0,3],
+       [4,0],
+       [4,2],
+       [4,3]]
 
 #dataset
 source='data/All_T.csv'
@@ -114,6 +119,8 @@ Data=pd.read_csv(os.path.join(cd,source))
 Data['Time']=np.array([utl.num_to_dt64(utl.datenum(t,'%Y-%m-%d %H:%M:%S')+timezone*3600) for t in Data['Time'].values])
 Data=Data.set_index('Time')
 
+_vars=np.array(_vars)[active_features]
+
 #remove high uncertainty
 for ID in IDs:
     Data['T_'+str(ID)+'_0.0m'][Data['sigma_T_'+str(ID)+'_0.0m']>max_sigma_T]=np.nan
@@ -130,6 +137,7 @@ n_features=len(_vars)
 
 #%% Main
 
+
 #add missing features
 Data['hour']=np.array([t.hour+t.minute/60 for t in Data.index])
 
@@ -144,25 +152,55 @@ for ID in IDs:
     Data['T_daily_avg_{ID}_met'.format(ID=ID)]=Data_daily_avg['T_{ID}_met'.format(ID=ID)]
     Data['T_det_{ID}_met'.format(ID=ID)]=Data_det['T_{ID}_met'.format(ID=ID)]
 
+utl.lag(Data['DT_10'].values,Data['DT_10'].values)
+
 if calculate_importance:
     importance={}
     importance_std={}
+
+corr={}
+for ID in IDs:
+    X=[]
+    for v in _vars:
+        if X==[]:
+            X=Data[v.format(ID=ID)].values.reshape(-1,1)
+        else:
+            X=np.hstack((X,Data[v.format(ID=ID)].values.reshape(-1,1)))
+    y= Data['DT_'+str(ID)].values
+    corr[ID]=utl.nancorrcoef(X.T)
+    if calculate_importance:
+        importance[ID],importance_std[ID],*_=utl.RF_feature_selector(X,y)
+
     
+#%% Plots
+if calculate_importance:
+    plt.figure()
+    ctr=0
+    for ID in IDs:
+        plt.bar(np.arange(n_features)*3-0.5*(ctr-1),importance[ID],yerr=importance_std[ID],color=colors[ID],capsize=5,linewidth=2,width=0.5,label=site_names[ID])
+        ctr+=1
+    plt.legend()
+    plt.xticks(np.arange(n_features)*3,[labels[v] for v in +_vars])
+    plt.grid()
+    
+fig=plt.figure(figsize=(18,10))
+for ID in IDs:
+    ax=plt.subplot(1,len(IDs),np.where(ID==np.array(IDs))[0][0]+1)
+    ax=plt.pcolor(corr[ID],cmap='seismic',vmin=-1,vmax=1)
+    plt.xticks(np.arange(n_features)+0.5,[labels[v] for v in +_vars],rotation=90)
+    plt.yticks(np.arange(n_features)+0.5,[labels[v] for v in +_vars],rotation=0)
+    for i in range(corr[ID].shape[0]):
+        for j in range(corr[ID].shape[1]):
+            plt.text(j + 0.5, i + 0.5, f'{corr[ID][i, j]:.2f}', ha='center', va='center', color='black',fontsize=8)
+            
+    plt.title('Correlation between features at '+site_names[ID])
+    utl.axis_equal()
+utl.remove_labels(fig) 
+plt.tight_layout()
+
+
 fig=plt.figure(figsize=(18,6))
 for ID in IDs:
-    if calculate_importance:
-        X=[]
-        for v in _vars:
-            if X==[]:
-                X=Data[v.format(ID=ID)].values.reshape(-1,1)
-            else:
-                X=np.hstack((X,Data[v.format(ID=ID)].values.reshape(-1,1)))
-        
-        y= Data['DT_'+str(ID)].values
-        
-        importance[ID],importance_std[ID],*_=utl.RF_feature_selector(X,y)
-    
-    #plot single-variable trends
     ctr=1
     for v in _vars:
         plt.subplot(len(IDs),n_features,np.where(ID==np.array(IDs))[0][0]*n_features+ctr)
@@ -177,13 +215,16 @@ for ID in IDs:
 utl.remove_labels(fig)
 plt.tight_layout()
     
-#%% Plots
-if calculate_importance:
-    plt.figure()
-    ctr=0
+#2D plots
+for p in pairs:
+    vx=_vars[p[0]]
+    vy=_vars[p[1]]
+    fig=plt.figure(figsize=(18,6))
     for ID in IDs:
-        plt.bar(np.arange(n_features)*3-0.5*(ctr-1),importance[ID],yerr=importance_std[ID],color=colors[ID],capsize=5,linewidth=2,width=0.5,label=site_names[ID])
-        ctr+=1
-    plt.legend()
-    plt.xticks(np.arange(n_features)*3,[labels[v] for v in +vars])
-    plt.grid()
+        ax=plt.subplot(1,len(IDs),np.where(ID==np.array(IDs))[0][0]+1)
+        utl.simple_bins_2d(Data[vx.format(ID=ID)], Data[vy.format(ID=ID)],Data['DT_'+str(ID)].values)
+        plt.xlabel(labels[vx])
+        plt.ylabel(labels[vy])
+        plt.title(site_names[ID])
+        plt.grid()
+    utl.remove_labels(fig)
