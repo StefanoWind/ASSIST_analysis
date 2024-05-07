@@ -230,13 +230,14 @@ for ID in IDs:
     ax1.set_yticks(np.arange(2,11,2))
     ax1.grid(visible=True)
     ax1.set_ylabel(r'$z$ [m.a.g.l.]')
-    
+
     ax2 = ax1.twinx()
     ax2.fill_between(np.arange(24),DT_0m_avg[ID],np.arange(24)*0,color='k',alpha=0.25)
     ax2.set_ylabel(r'$\Delta T$ (TROPoe 0 m - met 2 m) [$^\circ$]')
     ax2.set_ylim([-0.5,0.5])
     ax2.set_yticks(np.arange(-0.5,0.6,0.25))
-plt.xlabel('Hour')
+    plt.title(site_names[ID])
+ax1.set_xlabel('Hour')
 plt.tight_layout()
 
 #profiles (unbiased)
@@ -257,7 +258,7 @@ for ID in IDs:
     ax2.set_ylabel(r'$\Delta T$ (TROPoe 0 m - met 2 m) [$^\circ$]')
     ax2.set_ylim([-0.4,0.4])
     ax2.set_yticks(np.arange(-0.4,0.5,0.2))
-plt.title(site_names[ID])
-plt.xlabel('Hour')
+    plt.title(site_names[ID])
+ax1.set_xlabel('Hour')
 
 plt.tight_layout()
