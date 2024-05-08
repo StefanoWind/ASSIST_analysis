@@ -116,14 +116,20 @@ for ID in IDs:
 T_met_avg={}
 T_0m_avg={}
 T_10m_avg={}
+SWR_avg={}
+T_abb_avg={}
 
 T_met_low={}
 T_0m_low={}
 T_10m_low={}
+SWR_low={}
+T_abb_low={}
 
 T_met_top={}
 T_0m_top={}
 T_10m_top={}
+SWR_top={}
+T_abb_top={}
 
 T_det_met_avg={}
 T_det_0m_avg={}
@@ -144,17 +150,23 @@ DT_unb_10m_avg={}
 
 
 for ID in IDs:
-    T_met_avg[ID]=stats.binned_statistic(Data['hour'],Data['T_{ID}_met'.format(ID=ID)],statistic=  lambda x:filt_mean(x,perc_lim),bins=np.arange(-0.5,24))[0]
-    T_0m_avg[ID]= stats.binned_statistic(Data['hour'],Data['T_{ID}_0.0m'.format(ID=ID)],statistic= lambda x:filt_mean(x,perc_lim),bins=np.arange(-0.5,24))[0]
-    T_10m_avg[ID]=stats.binned_statistic(Data['hour'],Data['T_{ID}_10.0m'.format(ID=ID)],statistic=lambda x:filt_mean(x,perc_lim),bins=np.arange(-0.5,24))[0]
+    T_met_avg[ID]=stats.binned_statistic(Data['hour'],Data['T_{ID}_met'.format(ID=ID)],    statistic=  lambda x:filt_mean(x,perc_lim),bins=np.arange(-0.5,24))[0]
+    T_0m_avg[ID]= stats.binned_statistic(Data['hour'],Data['T_{ID}_0.0m'.format(ID=ID)],   statistic= lambda x:filt_mean(x,perc_lim),bins=np.arange(-0.5,24))[0]
+    T_10m_avg[ID]=stats.binned_statistic(Data['hour'],Data['T_{ID}_10.0m'.format(ID=ID)],  statistic=lambda x:filt_mean(x,perc_lim),bins=np.arange(-0.5,24))[0]
+    SWR_avg[ID]=  stats.binned_statistic(Data['hour'],Data['SWR_{ID}_met'.format(ID=ID)],  statistic=lambda x:filt_mean(x,perc_lim),bins=np.arange(-0.5,24))[0]
+    T_abb_avg[ID]=stats.binned_statistic(Data['hour'],Data['T_abb_{ID}_sum'.format(ID=ID)],statistic=lambda x:filt_mean(x,perc_lim),bins=np.arange(-0.5,24))[0]
     
-    T_met_low[ID]=stats.binned_statistic(Data['hour'],Data['T_{ID}_met'.format(ID=ID)],  lambda x:filt_BS_mean(x,perc_lim,p_value/2*100,M_BS),bins=np.arange(-0.5,24))[0]
-    T_0m_low[ID]= stats.binned_statistic(Data['hour'],Data['T_{ID}_0.0m'.format(ID=ID)], lambda x:filt_BS_mean(x,perc_lim,p_value/2*100,M_BS),bins=np.arange(-0.5,24))[0]
-    T_10m_low[ID]=stats.binned_statistic(Data['hour'],Data['T_{ID}_10.0m'.format(ID=ID)],lambda x:filt_BS_mean(x,perc_lim,p_value/2*100,M_BS),bins=np.arange(-0.5,24))[0]
+    T_met_low[ID]=stats.binned_statistic(Data['hour'],Data['T_{ID}_met'.format(ID=ID)],    lambda x:filt_BS_mean(x,perc_lim,p_value/2*100,M_BS),bins=np.arange(-0.5,24))[0]
+    T_0m_low[ID]= stats.binned_statistic(Data['hour'],Data['T_{ID}_0.0m'.format(ID=ID)],   lambda x:filt_BS_mean(x,perc_lim,p_value/2*100,M_BS),bins=np.arange(-0.5,24))[0]
+    T_10m_low[ID]=stats.binned_statistic(Data['hour'],Data['T_{ID}_10.0m'.format(ID=ID)],  lambda x:filt_BS_mean(x,perc_lim,p_value/2*100,M_BS),bins=np.arange(-0.5,24))[0]
+    SWR_low[ID]=  stats.binned_statistic(Data['hour'],Data['SWR_{ID}_met'.format(ID=ID)],  lambda x:filt_BS_mean(x,perc_lim,p_value/2*100,M_BS),bins=np.arange(-0.5,24))[0]
+    T_abb_low[ID]=stats.binned_statistic(Data['hour'],Data['T_abb_{ID}_sum'.format(ID=ID)],lambda x:filt_BS_mean(x,perc_lim,p_value/2*100,M_BS),bins=np.arange(-0.5,24))[0]
      
-    T_met_top[ID]=stats.binned_statistic(Data['hour'],Data['T_{ID}_met'.format(ID=ID)],  lambda x:filt_BS_mean(x,perc_lim,(1-p_value/2)*100,M_BS),bins=np.arange(-0.5,24))[0]
-    T_0m_top[ID]= stats.binned_statistic(Data['hour'], Data['T_{ID}_0.0m'.format(ID=ID)], lambda x:filt_BS_mean(x,perc_lim,(1-p_value/2)*100,M_BS),bins=np.arange(-0.5,24))[0]
-    T_10m_top[ID]=stats.binned_statistic(Data['hour'],Data['T_{ID}_10.0m'.format(ID=ID)],lambda x:filt_BS_mean(x,perc_lim,(1-p_value/2)*100,M_BS),bins=np.arange(-0.5,24))[0]
+    T_met_top[ID]=stats.binned_statistic(Data['hour'],Data['T_{ID}_met'.format(ID=ID)],    lambda x:filt_BS_mean(x,perc_lim,(1-p_value/2)*100,M_BS),bins=np.arange(-0.5,24))[0]
+    T_0m_top[ID]= stats.binned_statistic(Data['hour'], Data['T_{ID}_0.0m'.format(ID=ID)],  lambda x:filt_BS_mean(x,perc_lim,(1-p_value/2)*100,M_BS),bins=np.arange(-0.5,24))[0]
+    T_10m_top[ID]=stats.binned_statistic(Data['hour'],Data['T_{ID}_10.0m'.format(ID=ID)],  lambda x:filt_BS_mean(x,perc_lim,(1-p_value/2)*100,M_BS),bins=np.arange(-0.5,24))[0]
+    SWR_top[ID]=  stats.binned_statistic(Data['hour'],Data['SWR_{ID}_met'.format(ID=ID)],  lambda x:filt_BS_mean(x,perc_lim,(1-p_value/2)*100,M_BS),bins=np.arange(-0.5,24))[0]
+    T_abb_top[ID]=stats.binned_statistic(Data['hour'],Data['T_abb_{ID}_sum'.format(ID=ID)],lambda x:filt_BS_mean(x,perc_lim,(1-p_value/2)*100,M_BS),bins=np.arange(-0.5,24))[0]
     
     T_det_met_avg[ID]=stats.binned_statistic(Data['hour'],Data_det['T_{ID}_met'.format(ID=ID)],  statistic=lambda x:filt_mean(x,perc_lim),bins=np.arange(-0.5,24))[0]
     T_det_0m_avg[ID]= stats.binned_statistic(Data['hour'],Data_det['T_{ID}_0.0m'.format(ID=ID)], statistic=lambda x:filt_mean(x,perc_lim),bins=np.arange(-0.5,24))[0]
@@ -217,6 +229,31 @@ for ID in IDs:
     plt.xlabel('Hour')
 utl.remove_labels(fig)
 plt.legend()
+
+#solar radiation
+fig=plt.figure(figsize=(18,5))
+for ID in IDs:
+    ax1=plt.subplot(1,len(IDs),np.where(ID==np.array(IDs))[0][0]+1)
+    plt.plot(np.arange(24),T_met_avg[ID],'k',label='Met at 2 m')
+    ax1.fill_between(np.arange(24),T_met_low[ID],T_met_top[ID],color='k', alpha=0.25)
+    plt.plot(np.arange(24),T_abb_avg[ID],'g',label='ABB')
+    ax1.fill_between(np.arange(24),T_abb_low[ID],T_abb_top[ID],color='g', alpha=0.25)
+    plt.ylabel(r'T [C$^\circ$]')
+    plt.ylim([0,50])
+    plt.yticks(np.arange(0,51,10))
+    
+    ax2 = ax1.twinx()
+    plt.plot(np.arange(24),SWR_avg[ID],'y')
+    ax2.fill_between(np.arange(24),SWR_low[ID],SWR_top[ID],color='y', alpha=0.25)
+    plt.ylabel(r'SW radiation [m $^{-2}$]')
+    plt.ylim([0,1000])
+    plt.yticks(np.arange(0,1001,200))
+    plt.grid()
+    plt.title(site_names[ID])
+    plt.xticks([0,6,12,18],labels=['00','06','12','18'])
+    plt.xlabel('Hour')
+utl.remove_labels(fig)
+
 
 #profiles (biased)
 colors = plt.cm.coolwarm(np.linspace(0, 1, 24))
