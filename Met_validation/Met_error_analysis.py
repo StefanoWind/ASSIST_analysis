@@ -26,25 +26,30 @@ matplotlib.rcParams['font.size'] = 12
 #%% Inputs
 
 #user
-calculate_importance=True
+calculate_importance=False
 shield_uncertainty=False
-active_features=[0,1,2,3,4,5,6,7,10]#feature to consider
-pairs=[[0,3],#pairs of features for 2D plots
-       [4,0],
+active_features=[0,1,2,3,4,5,6,7,8,9,10]#feature to consider
+pairs=[[4,0],#pairs of features for 2D plots
        [4,3],
-       [4,7]]
+       [4,5],
+       [4,7],
+       [4,8],
+       [4,9],
+       [4,10]]
 
 #dataset
 source='data/All_T.csv'
 IDs=[11,12,10] #IDs of the ASSISTs
-_vars=['T_{ID}_met','T_daily_avg_{ID}_met','T_det_{ID}_met','DT_dz_{ID}','hour',
-       'Hub-height wind speed [m/s]','Hub-height wind direction [degrees]','WS_{ID}_met',
-       'T_abb_{ID}_sum','T_frontend_{ID}_sum','NEN_{ID}_sum']
+_vars=['T_{ID}_met','T_daily_avg_{ID}_met','T_det_{ID}_met','DT_dz_{ID}','hour','r_{ID}_0.0m',
+       'Hub-height wind speed [m/s]','Hub-height wind direction [degrees]',
+       'WS_{ID}_met','RH_{ID}_met','SWR_{ID}_met','AWS_{ID}_met',
+       'NEN_{ID}_sum','T_abb_{ID}_sum','T_frontend_{ID}_sum']
 
 WS_cutin=3#[m/s] cutin wind speed (KP+AF)
 WS_rated=12#[m/s] rated wind speed (KP+AF)
 WS_cutout=20#[m/s] cutout wind speed (KP+AF)
-max_sigma_T=5#[K] maximum uncertainty
+max_sigma_T=5#[K] maximum uncertainty on temperature
+max_sigma_r=2#[g/Kg] maximum uncertainty on mixing ratio
 timezone=-6#[hours] difference local time - UTC
 
 # graphics
@@ -58,10 +63,14 @@ labels={'T_{ID}_met':r'$T$ (met at 2 m) [$^\circ$C]',
         'T_daily_avg_{ID}_met':r'$\hat{T}$ (met at 2 m) [$^\circ$C]',
         'T_det_{ID}_met':r'$\tilde{T}$ (met at 2 m) [$^\circ$C]',
         'DT_dz_{ID}':r'$\frac{\partial T}{\partial z}$ at the ground [$^\circ$C m$^{-1}$]',
+        'r_{ID}_0.0m':r'Mixing ratio (TROPoe at 0 m) [g Kg$^{-1}$]',
         'hour':'Hour',
         'Hub-height wind speed [m/s]':r'$\overline{u}$ (hub height) [m s$^{-1}$]',
         'Hub-height wind direction [degrees]':r'$\overline{\theta}_w$ (hub height)[$^\circ$]',
         'WS_{ID}_met':r'$\overline{u}$ (met at 3 m) [m s$^{-1}$]',
+        'AWS_{ID}_met':r'$\overline{\sqrt{u^2+v^2}}$ (met at 3 m) [m s$^{-1}$]',
+        'RH_{ID}_met':'RH (met at 2 m) [%]',
+        'SWR_{ID}_met':r'SW radiation (met at 2 m) [W m$^{-2}$]',
         'T_abb_{ID}_sum':r'$T$ (ABB) [$^\circ$C]',
         'T_frontend_{ID}_sum':r'$T$ (frontend) [$^\circ$C]',
         'NEN_{ID}_sum':'NEN'}
@@ -70,10 +79,14 @@ limits={'T_{ID}_met':[0,50],
         'T_daily_avg_{ID}_met':[0,50],
         'T_det_{ID}_met':[10,10],
         'DT_dz_{ID}':[-0.25,0.25],
+        'r_{ID}_0.0m':[5,20],
         'hour':[0,23],
         'Hub-height wind speed [m/s]':[0,20],
         'Hub-height wind direction [degrees]':[0,360],
         'WS_{ID}_met':[0,10],
+        'AWS_{ID}_met':[0,10],
+        'RH_{ID}_met':[0,100],
+        'SWR_{ID}_met':[0,1000],
         'T_abb_{ID}_sum':[0,50],
         'T_frontend_{ID}_sum':[0,50],
         'NEN_{ID}_sum':[0,1],}
@@ -82,10 +95,14 @@ xticks={'T_{ID}_met':[0,10,20,30,40,50],
         'T_daily_avg_{ID}_met':[0,10,20,30,40,50],
         'T_det_{ID}_met':[-10,-5,0,5,10],
         'DT_dz_{ID}':[-0.25,0,0.25],
+        'r_{ID}_0.0m':[5,10,15,20],
         'hour':[0,6,12,18,24],
         'Hub-height wind speed [m/s]':np.arange(0,21,5),
         'Hub-height wind direction [degrees]':[0,90,180,270,360],
         'WS_{ID}_met':[0,5,10],
+        'AWS_{ID}_met':[0,5,10],
+        'RH_{ID}_met':[0,25,50,75,100],
+        'SWR_{ID}_met':[0,500,1000],
         'T_abb_{ID}_sum':[0,10,20,30,40,50],
         'T_frontend_{ID}_sum':[0,10,20,30,40,50],
         'NEN_{ID}_sum':[0,0.5,1]}
@@ -111,6 +128,7 @@ Data=pd.read_csv(os.path.join(cd,source))
 Data['Time']=np.array([utl.num_to_dt64(utl.datenum(t,'%Y-%m-%d %H:%M:%S')+timezone*3600) for t in Data['Time'].values])
 Data=Data.set_index('Time')
 
+
 _vars=np.array(_vars)[active_features]
 
 #remove high uncertainty
@@ -121,9 +139,17 @@ for ID in IDs:
     Data['T_'+str(ID)+'_10.0m'][Data['sigma_T_'+str(ID)+'_10.0m']>max_sigma_T]=np.nan
     Data['sigma_T_'+str(ID)+'_10.0m'][Data['sigma_T_'+str(ID)+'_10.0m']>max_sigma_T]=np.nan
     
+    Data['r_'+str(ID)+'_0.0m'][Data['sigma_r_'+str(ID)+'_0.0m']>max_sigma_r]=np.nan
+    Data['sigma_r_'+str(ID)+'_0.0m'][Data['sigma_r_'+str(ID)+'_0.0m']>max_sigma_r]=np.nan
+    
+    Data['r_'+str(ID)+'_10.0m'][Data['sigma_r_'+str(ID)+'_10.0m']>max_sigma_r]=np.nan
+    Data['sigma_r_'+str(ID)+'_10.0m'][Data['sigma_r_'+str(ID)+'_10.0m']>max_sigma_r]=np.nan
+    
     Data['sigma_T_'+str(ID)+'_met']=met_uncertainty(Data['T_'+str(ID)+'_met'],Data['WS_'+str(ID)+'_met'],shield_uncertainty)
     Data['T_'+str(ID)+'_met'][Data['sigma_T_'+str(ID)+'_met']>max_sigma_T]=np.nan
     Data['sigma_T_'+str(ID)+'_met'][Data['sigma_T_'+str(ID)+'_met']>max_sigma_T]=np.nan
+    
+    
     
 n_features=len(_vars)
 
@@ -131,6 +157,7 @@ n_features=len(_vars)
 
 #add missing features
 Data['hour']=np.array([t.hour+t.minute/60 for t in Data.index])
+
 
 dt=np.nanmedian(np.diff(Data.index))
 assert np.nanmax(np.diff(Data.index))==np.nanmin(np.diff(Data.index))
@@ -183,7 +210,7 @@ for ID in IDs:
     plt.yticks(np.arange(n_features)+0.5,[labels[v] for v in +_vars],rotation=0)
     for i in range(corr[ID].shape[0]):
         for j in range(corr[ID].shape[1]):
-            plt.text(j + 0.5, i + 0.5, f'{corr[ID][i, j]:.2f}', ha='center', va='center', color='black',fontsize=8)
+            plt.text(j + 0.5, i + 0.5, f'{corr[ID][i, j]:.2f}', ha='center', va='center', color='green',fontsize=8)
             
     plt.title('Correlation between features at '+site_names[ID])
     utl.axis_equal()
@@ -191,13 +218,13 @@ utl.remove_labels(fig)
 plt.tight_layout()
 
 #1-D plots
-fig=plt.figure(figsize=(18,6))
+fig=plt.figure(figsize=(18,8))
 for ID in IDs:
     ctr=1
     for v in _vars:
         plt.subplot(len(IDs),n_features,np.where(ID==np.array(IDs))[0][0]*n_features+ctr)
         utl.simple_bins(Data[v.format(ID=ID)].values,Data['DT_{ID}'.format(ID=ID)].values,bins=25)
-        plt.xlabel(labels[v],rotation=20)
+        plt.xlabel(labels[v],rotation=90)
         plt.ylabel(r'$\Delta T$ (TROPoe-met) '+'\n'+ 'at '+site_names[ID]+' [$^\circ$C]')
         plt.grid()
         plt.xlim(limits[v])
@@ -214,7 +241,7 @@ for p in pairs:
     fig=plt.figure(figsize=(18,6))
     for ID in IDs:
         ax=plt.subplot(1,len(IDs),np.where(ID==np.array(IDs))[0][0]+1)
-        utl.simple_bins_2d(Data[vx.format(ID=ID)], Data[vy.format(ID=ID)],Data['DT_'+str(ID)].values)
+        utl.simple_bins_2d(Data[vx.format(ID=ID)], Data[vy.format(ID=ID)],Data['DT_'+str(ID)].values,bins_x=25)
         plt.xlabel(labels[vx])
         plt.ylabel(labels[vy])
         plt.title(site_names[ID])
