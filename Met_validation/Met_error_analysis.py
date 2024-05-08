@@ -26,7 +26,7 @@ matplotlib.rcParams['font.size'] = 12
 #%% Inputs
 
 #user
-calculate_importance=False
+calculate_importance=True
 shield_uncertainty=False
 active_features=[0,1,2,3,4,5,6,7,8,9,10]#feature to consider
 pairs=[[4,0],#pairs of features for 2D plots
@@ -45,9 +45,6 @@ _vars=['T_{ID}_met','T_daily_avg_{ID}_met','T_det_{ID}_met','DT_dz_{ID}','hour',
        'WS_{ID}_met','RH_{ID}_met','SWR_{ID}_met','AWS_{ID}_met',
        'NEN_{ID}_sum','T_abb_{ID}_sum','T_frontend_{ID}_sum']
 
-WS_cutin=3#[m/s] cutin wind speed (KP+AF)
-WS_rated=12#[m/s] rated wind speed (KP+AF)
-WS_cutout=20#[m/s] cutout wind speed (KP+AF)
 max_sigma_T=5#[K] maximum uncertainty on temperature
 max_sigma_r=2#[g/Kg] maximum uncertainty on mixing ratio
 timezone=-6#[hours] difference local time - UTC
@@ -127,7 +124,6 @@ def met_uncertainty(T,WS,shield_uncertainty):
 Data=pd.read_csv(os.path.join(cd,source))
 Data['Time']=np.array([utl.num_to_dt64(utl.datenum(t,'%Y-%m-%d %H:%M:%S')+timezone*3600) for t in Data['Time'].values])
 Data=Data.set_index('Time')
-
 
 _vars=np.array(_vars)[active_features]
 
