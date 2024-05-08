@@ -42,7 +42,7 @@ for s in sources.keys():
     Output['wind_speed']=WS
     Output['average_wind_speed']=AWS
     Output['relative_humidity']=RH
-    Output['shortwave_radiation']=RH
+    Output['shortwave_radiation']=SWR
     Output['Time']=time
     Output=Output.set_index('Time')
     Output.to_csv(os.path.join(cd,'data/Met_data_'+str(s)+'.csv'))
