@@ -25,9 +25,9 @@ matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 14
 
 #%% Inputs
-source_trp='data/TROPoe_T_{ID}.csv'
-source_met='data/Met_T_WS_RH_{ID}.csv'
-source_sum='data/Summary_T_{ID}.csv'
+source_trp='data/TROPoe_data_{ID}.csv'
+source_met='data/Met_data_{ID}.csv'
+source_sum='data/Summary_data_{ID}.csv'
 source_inflow='data/20230101.000500-20240101.224500.awaken.glob.summary.csv'
 start_time='2023-05-08 00:00:00.0'
 end_time='2023-10-16 00:00:00.0'
@@ -58,7 +58,7 @@ for ID in IDs:
     
     rename={}
     for c in Data_trp_int.columns:
-        rename[c]=c.replace('T_','T_'+str(ID)+'_').replace('vres_','vres_'+str(ID)+'_')
+        rename[c]=c.replace('T_','T_'+str(ID)+'_').replace('vres_T_','vres_T_'+str(ID)+'_').replace('r_','r_'+str(ID)+'_').replace('vres_r_','vres_r_'+str(ID)+'_')
     Data_trp_int=Data_trp_int.rename(columns=rename)
     
     Data=pd.merge(Data,Data_trp_int,left_index=True,right_index=True)
@@ -87,8 +87,10 @@ for ID in IDs:
 
     Data_met_synch=SL.resample_flex_v2_2(Data_met, tnum1, tnum2, 'mean')
     Data_met_synch=Data_met_synch.rename(columns={'temperature':'T_'+str(ID)+'_met',
-                                                  'average_wind_speed':'WS_'+str(ID)+'_met',
-                                                  'relative_humidity':'RH_'+str(ID)+'_met'})
+                                                  'wind_speed':'WS_'+str(ID)+'_met',
+                                                  'average_wind_speed':'AWS_'+str(ID)+'_met',
+                                                  'relative_humidity':'RH_'+str(ID)+'_met',
+                                                  'shortwave_radiation':'SWR_'+str(ID)+'_met'})
     Data=pd.merge(Data,Data_met_synch,left_index=True,right_index=True)
 
 print('Exctracting inflow data')
