@@ -15,6 +15,7 @@ from matplotlib import pyplot as plt
 import warnings
 import matplotlib
 import pandas as pd
+from matplotlib.gridspec import GridSpec
 
 warnings.filterwarnings('ignore')
 plt.close('all')
@@ -145,15 +146,12 @@ for ID in IDs:
     Data['T_'+str(ID)+'_met'][Data['sigma_T_'+str(ID)+'_met']>max_sigma_T]=np.nan
     Data['sigma_T_'+str(ID)+'_met'][Data['sigma_T_'+str(ID)+'_met']>max_sigma_T]=np.nan
     
-    
-    
 n_features=len(_vars)
 
 #%% Main
 
 #add missing features
 Data['hour']=np.array([t.hour+t.minute/60 for t in Data.index])
-
 
 dt=np.nanmedian(np.diff(Data.index))
 assert np.nanmax(np.diff(Data.index))==np.nanmin(np.diff(Data.index))
@@ -183,7 +181,6 @@ for ID in IDs:
     if calculate_importance:
         importance[ID],importance_std[ID],*_=utl.RF_feature_selector(X,y)
 
-    
 #%% Plots
 if calculate_importance:
     plt.figure(figsize=(18,6))
@@ -235,11 +232,17 @@ for p in pairs:
     vx=_vars[p[0]]
     vy=_vars[p[1]]
     fig=plt.figure(figsize=(18,6))
+    gs = GridSpec(1, len(IDs)+1, width_ratios=[1]*len(IDs)+ [0.05])
     for ID in IDs:
-        ax=plt.subplot(1,len(IDs),np.where(ID==np.array(IDs))[0][0]+1)
-        utl.simple_bins_2d(Data[vx.format(ID=ID)], Data[vy.format(ID=ID)],Data['DT_'+str(ID)].values,bins_x=25)
+        ax = fig.add_subplot(gs[np.where(ID==np.array(IDs))[0][0]])
+        plt.sca(ax)
+        avg,pcolor,scatter=utl.simple_bins_2d(Data[vx.format(ID=ID)], Data[vy.format(ID=ID)],Data['DT_'+str(ID)].values,bins_x=25)
+        pcolor.set_cmap('seismic')
+        pcolor.set_clim([-2,2])
         plt.xlabel(labels[vx])
         plt.ylabel(labels[vy])
         plt.title(site_names[ID])
         plt.grid()
     utl.remove_labels(fig)
+    ax = fig.add_subplot(gs[-1])
+    cbar = plt.colorbar(pcolor, cax=ax,label=r'$\Delta T$ (TROPoe-met) [$^\circ$C]')
