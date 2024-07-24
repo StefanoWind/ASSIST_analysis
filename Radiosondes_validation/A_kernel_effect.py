@@ -32,10 +32,10 @@ matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 16
 
 #%% Inputs
-month='07'
-source_prior='data/prior/Xa_Sa_datafile.sgp.55_levels.month_{month}.cdf'
+month='05'
+source_prior='data/prior/Xa_Sa_datafile.sgp.55_levels.month_{month:02d}.cdf'
 source='data/All_T.csv'
-source_sonde='data/sgpsondewnpnS6.b1/*2023{month}*cdf'
+source_sonde='data/sgpsondewnpnC1.b1/*2024{month:02d}*cdf'
 source_tropoe='data/assist-10/nreltropoe_10.c0.20230508.000015.nc'
 timezone=-6#timezone
 
@@ -51,17 +51,13 @@ height_met=2
 timezone=-6
 
 #%% Initialization
+# Data_T=pd.read_csv(os.path.join(cd,source))
+# Data_T['Time']=np.array([utl.num_to_dt64(utl.datenum(t,'%Y-%m-%d %H:%M:%S')+timezone*3600) for t in Data_T['Time'].values])
+# Data_T=Data_T.set_index('Time')
+
 Data_tropoe=xr.open_dataset(os.path.join(cd,source_tropoe))
 height=Data_tropoe.height.values*10**3
 A=np.nanmean(Data_tropoe.Akernal.values,axis=0)[:len(height),:len(height)].T
-# A=Data_tropoe.Akernal.values[0,:len(height),:len(height)]
-# A=np.eye(len(height))
-Prior=xr.open_dataset(os.path.join(cd,source_prior.format(month=month)))
-T_mean_prior=Prior['mean_temperature'].values
-T_std_prior=Prior['covariance_prior'].values[0,0]**0.5
-
-files_sonde=glob.glob(os.path.join(cd,source_sonde.format(month=month)))
-
 T_sonde=[]
 T_sonde_smooth=[]
 tnum_sonde=[]
@@ -69,46 +65,60 @@ hour_sonde=[]
 T_met_eq=[]
 
 #%% Main
-for f in files_sonde:
-    Data=xr.open_dataset(f)
-    time=Data['time'].values+np.timedelta64(timezone,'h')
-    asc=Data['asc'].values
-    T=Data.tdry.values
-    tnum=np.float64(time)/10**9
-    height_sonde=cumtrapz(asc,tnum,initial=0)
-    
-    T_interp=np.interp(height,height_sonde,T)
-    T_sonde=utl.vstack(T_sonde,T_interp)
-    T_sonde_smooth=utl.vstack(T_sonde_smooth,np.matmul(A,(T_interp-T_mean_prior))+T_mean_prior)
-    
-    T_met_eq=np.append(T_met_eq,np.interp(height_met,height_sonde,T))
-    
-    tnum_sonde=np.append(tnum_sonde,np.nanmean(tnum))
-    hour_sonde=np.append(hour_sonde,(np.nanmean(tnum)-utl.floor(np.nanmean(tnum),3600*24))/3600)
-    print(f)
-         
+for month in range(1,13):
+    files_sonde=glob.glob(os.path.join(cd,source_sonde.format(month=month)))
+    Prior=xr.open_dataset(os.path.join(cd,source_prior.format(month=month)))
+    T_mean_prior=Prior['mean_temperature'].values
+    for f in files_sonde:
+        Data=xr.open_dataset(f)
+        time=Data['time'].values+np.timedelta64(timezone,'h')
+        asc=Data['asc'].values
+        T=Data.tdry.values
+        tnum=np.float64(time)/10**9
+        height_sonde=cumtrapz(asc,tnum,initial=0)
+        
+        tnum_sonde=np.append(tnum_sonde,np.nanmean(tnum))
+        hour_sonde=np.append(hour_sonde,(np.nanmean(tnum)-utl.floor(np.nanmean(tnum),3600*24))/3600)
+        
+        T_interp=np.interp(height,height_sonde,T)
+        T_sonde=utl.vstack(T_sonde,T_interp)
+        T_sonde_smooth=utl.vstack(T_sonde_smooth,np.matmul(A,(T_interp-T_mean_prior))+T_mean_prior)
+        
+        T_met_eq=np.append(T_met_eq,np.interp(height_met,height_sonde,T)+(np.abs(hour_sonde[-1]-12)<6)*0.5)
+        
+        
+        print(f)
+             
 T_sonde_avg=np.zeros((len(bin_hour)-1,len(height)))
+T_sonde_smooth_avg=np.zeros((len(bin_hour)-1,len(height)))
 DT_avg=np.zeros((len(bin_hour)-1,len(height)))
+DT_smooth_avg=np.zeros((len(bin_hour)-1,len(height)))
 for i_z in range(len(height)):
     T_sonde_avg[:,i_z]=binned_statistic(hour_sonde, T_sonde[:,i_z],statistic='median',bins=bin_hour)[0]
-    # T_sonde_smooth_avg[:,i_z]=binned_statistic(hour_sonde, T_sonde_smooth[:,i_z],statistic='mean',bins=bin_hour)[0]
-    DT_avg[:,i_z]=binned_statistic(hour_sonde, T_sonde_smooth[:,i_z]-T_met_eq,statistic='median',bins=bin_hour)[0]
+    T_sonde_smooth_avg[:,i_z]=binned_statistic(hour_sonde, T_sonde_smooth[:,i_z],statistic='median',bins=bin_hour)[0]
+    DT_avg[:,i_z]=binned_statistic(hour_sonde, T_sonde[:,i_z]-T_met_eq,statistic='median',bins=bin_hour)[0]
+    DT_smooth_avg[:,i_z]=binned_statistic(hour_sonde, T_sonde_smooth[:,i_z]-T_met_eq,statistic='median',bins=bin_hour)[0]
     
     
     
 #%% Plots
 plt.figure()
-plt.plot(hour_sonde,T_sonde_smooth[:,0]-T_met_eq,'.k')
+# plt.plot(hour_sonde,T_sonde_smooth[:,0]-T_met_eq,'.k')
 plt.plot(utl.mid(bin_hour),DT_avg[:,0],'k')
-plt.plot(hour_sonde,T_sonde_smooth[:,1]-T_met_eq,'.b')
+plt.plot(utl.mid(bin_hour),DT_smooth_avg[:,0],'--k')
+# plt.plot(hour_sonde,T_sonde_smooth[:,1]-T_met_eq,'.b')
 plt.plot(utl.mid(bin_hour),DT_avg[:,1],'b')
+plt.plot(utl.mid(bin_hour),DT_smooth_avg[:,1],'--b')
 
-plt.figure()
-i=10
-plt.plot(T_sonde[i,:],height)
-plt.plot(T_sonde_smooth[i,:],height)
-
-
+plt.figure(figsize=(18,4))
+for i_hour in range(len(bin_hour)-1):
+    plt.subplot(1,len(bin_hour)-1,i_hour+1)
+    plt.plot(T_sonde_avg[i_hour,height<250].T,height[height<250],'k')
+    plt.plot(T_sonde_smooth_avg[i_hour,height<250].T,height[height<250],'--r')
+    plt.grid()
+    plt.title(str(bin_hour[i_hour])+'-'+str(bin_hour[i_hour+1]))
+    plt.gca().set_yticklabels([])
+    
 # plt.figure()
 # i=10
 # plt.plot(T_test,height)
