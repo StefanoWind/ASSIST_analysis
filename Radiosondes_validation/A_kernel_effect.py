@@ -104,10 +104,10 @@ for i_z in range(len(height)):
 #%% Plots
 plt.figure()
 # plt.plot(hour_sonde,T_sonde_smooth[:,0]-T_met_eq,'.k')
-plt.plot(utl.mid(bin_hour),DT_avg[:,0],'k')
+plt.plot(utl.mid(bin_hour),DT_avg[:,0],'.-k')
 plt.plot(utl.mid(bin_hour),DT_smooth_avg[:,0],'--k')
 # plt.plot(hour_sonde,T_sonde_smooth[:,1]-T_met_eq,'.b')
-plt.plot(utl.mid(bin_hour),DT_avg[:,1],'b')
+plt.plot(utl.mid(bin_hour),DT_avg[:,1],'.-b')
 plt.plot(utl.mid(bin_hour),DT_smooth_avg[:,1],'--b')
 
 plt.figure(figsize=(18,4))
