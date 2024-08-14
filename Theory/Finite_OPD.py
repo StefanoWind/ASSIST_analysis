@@ -82,8 +82,13 @@ H_real[wnum_fine==0]=xmax*2
 
 
 #quantify smoothing
-integ, error = integrate.quad(lambda t: np.abs(2*np.sin(2*np.pi*t*xmax)/(2*np.pi*t)), 0,dwnum*1)
-print(integ/0.5)
+integ1, error1 = integrate.quad(lambda t: np.abs(2*np.sin(2*np.pi*t*xmax)/(2*np.pi*t)), 0,dwnum)
+integ2, error2 = integrate.quad(lambda t: np.abs(2*np.sin(2*np.pi*t*xmax)/(2*np.pi*t)), dwnum,dwnum*2)
+integ3, error3 = integrate.quad(lambda t: np.abs(2*np.sin(2*np.pi*t*xmax)/(2*np.pi*t)), dwnum*2,dwnum*3)
+integ4, error4 = integrate.quad(lambda t: np.abs(2*np.sin(2*np.pi*t*xmax)/(2*np.pi*t)), dwnum*3,dwnum*4)
+print(integ2/(integ1))
+print(integ3/(integ1))
+print(integ4/(integ1))
 
 #%% Plots
 fig=plt.figure(figsize=(18,10))
@@ -112,8 +117,10 @@ for c in clips:
                                  [zoom[1],zoom[3]],
                                  [zoom[1],zoom[2]]],color='g',facecolor='g', closed=True, fill=True,alpha=0.25)
     ax.add_patch(rectangle)
-    plt.xlabel(r'$\tilde{\nu}$ [cm$^{-1}$]')
-    plt.ylabel(r'$B$ [r.u.]')
+    # plt.xlabel(r'$\tilde{\nu}$ [cm$^{-1}$]')
+    if ctr==1:
+        plt.ylabel(r'$B$ [r.u.]')
+    plt.xlim([500,1850])
     plt.title(r'$x_{max}='+str(np.round(xmax*c,3))+'$ cm')
     plt.grid()
     if ctr==len(clips):
@@ -135,10 +142,10 @@ for c in clips:
     plt.xlim([wnum_fine[0],wnum_fine[-1]])
     plt.xticks(np.arange(-10,10)*dwnum_real,rotation=45)
     plt.xlabel(r'$\tilde{\nu}$ [cm$^{-1}$]')
-    plt.ylabel(r'$H$ [r.u cm]')
+    if ctr==1:
+        plt.ylabel(r'$H$ [r.u cm]')
     plt.grid()
     ctr+=1
 
 plt.legend(draggable=True)
 plt.tight_layout()
-utl.remove_labels(fig)

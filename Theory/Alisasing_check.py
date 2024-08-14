@@ -33,7 +33,7 @@ perc_aliasing=[]
 
 #%% Main
 for T in Ts:
-    B=2*h*c**2*(wnum*100)**3/(np.exp(h*c*(wnum*100)/(k*T))-1)*10**5
+    B=2*h*c**2*wnum**3/(np.exp(h*c*(wnum*100)/(k*T))-1)*10**11
     perc_aliasing=np.append(perc_aliasing,np.sum(B[wnum>wnum_laser/2])/np.sum(B))
 
 T_thresh=Ts[np.where(perc_aliasing*100>perc_sel)[0][0]]
