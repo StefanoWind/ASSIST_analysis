@@ -15,10 +15,11 @@ import warnings
 import matplotlib
 import matplotlib.patches as patches
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from scipy import integrate
 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 14
+matplotlib.rcParams['font.size'] = 18
 
 #%% Inputs
 source=os.path.join(cd,'data/sb.assist.z01.00.20230824.000041.assistcha.cdf')
@@ -79,8 +80,13 @@ wnum_fine=np.arange(-100,100)*dwnum_real/10
 H_real=2*np.sin(2*np.pi*wnum_fine*xmax)/(2*np.pi*wnum_fine)
 H_real[wnum_fine==0]=xmax*2
 
+
+#quantify smoothing
+integ, error = integrate.quad(lambda t: np.abs(2*np.sin(2*np.pi*t*xmax)/(2*np.pi*t)), 0,dwnum*1)
+print(integ/0.5)
+
 #%% Plots
-plt.figure(figsize=(18,10))
+fig=plt.figure(figsize=(18,10))
 ctr=1
 for c in clips:
     
@@ -99,8 +105,8 @@ for c in clips:
     B_clip=(B_ds_clip+B_ds_clip[::-1])[wnum_ds>=wnum[0]]
     
     ax=plt.subplot(2,len(clips),ctr)
-    plt.plot(wnum,np.abs(B),'k',linewidth=1)
-    plt.plot(wnum,np.abs(B_clip),'r',linewidth=1)
+    plt.plot(wnum,np.abs(B),'k',linewidth=1,label=r'$x_{max}='+str(np.round(xmax,3))+'$ cm')
+    plt.plot(wnum,np.abs(B_clip),'r',linewidth=1,label=r'Reduced $x_{max}$ (DFT)')
     rectangle = patches.Polygon([[zoom[0],zoom[2]],
                                  [zoom[0],zoom[3]],
                                  [zoom[1],zoom[3]],
@@ -108,8 +114,10 @@ for c in clips:
     ax.add_patch(rectangle)
     plt.xlabel(r'$\tilde{\nu}$ [cm$^{-1}$]')
     plt.ylabel(r'$B$ [r.u.]')
-    plt.title('x_{max} = '+str(c*100)+'%')
+    plt.title(r'$x_{max}='+str(np.round(xmax*c,3))+'$ cm')
     plt.grid()
+    if ctr==len(clips):
+        plt.legend(draggable=True)
     
     inset_ax = inset_axes(ax, width="40%", height="30%", loc='upper right', borderpad=1)
     plt.plot(wnum,np.abs(B),'k',linewidth=1)
@@ -120,15 +128,17 @@ for c in clips:
     plt.yticks([])
     
     plt.subplot(2,len(clips),ctr+len(clips))
-    plt.plot(wnum_fine,H_real,'k',label='ASSIST, full OPD')
-    plt.plot(wnum_fine,H_th,'r',alpha=0.5,label='Eq. ?')
-    plt.plot(wnum_ds,np.real(Hk)*dx,'.r',label=r'DFT$(h_n)$')
+    plt.plot(wnum_fine,H_real,'k',label=r'$x_{max}='+str(np.round(xmax,3))+'$ cm')
+    plt.plot(wnum_fine,H_th,'r',alpha=0.5,label=r'Reduced $x_{max}$ (theory)')
+    plt.plot(wnum_ds,np.real(Hk)*dx,'.r',label=r'Reduced $x_{max}$ (DFT)')
     
     plt.xlim([wnum_fine[0],wnum_fine[-1]])
     plt.xticks(np.arange(-10,10)*dwnum_real,rotation=45)
     plt.xlabel(r'$\tilde{\nu}$ [cm$^{-1}$]')
-    plt.ylabel(r'$H$ [arbitrary units]')
+    plt.ylabel(r'$H$ [r.u cm]')
     plt.grid()
     ctr+=1
 
+plt.legend(draggable=True)
 plt.tight_layout()
+utl.remove_labels(fig)
