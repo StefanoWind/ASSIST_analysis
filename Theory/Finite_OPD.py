@@ -137,10 +137,10 @@ for c in clips:
     plt.subplot(2,len(clips),ctr+len(clips))
     plt.plot(wnum_fine,H_real,'k',label=r'$x_{max}='+str(np.round(xmax,3))+'$ cm')
     plt.plot(wnum_fine,H_th,'r',alpha=0.5,label=r'Reduced $x_{max}$ (theory)')
-    plt.plot(wnum_ds,np.real(Hk)*dx,'.r',label=r'Reduced $x_{max}$ (DFT)')
+    # plt.plot(wnum_ds,np.real(Hk)*dx,'.r',label=r'Reduced $x_{max}$ (DFT)')
     
     plt.xlim([wnum_fine[0],wnum_fine[-1]])
-    plt.xticks(np.arange(-10,10)*dwnum_real,rotation=45)
+    plt.xticks(np.arange(-5,5),rotation=45)
     plt.xlabel(r'$\tilde{\nu}$ [cm$^{-1}$]')
     if ctr==1:
         plt.ylabel(r'$H$ [r.u cm]')
