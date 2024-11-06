@@ -111,7 +111,7 @@ for c in clips:
     
     ax=plt.subplot(2,len(clips),ctr)
     plt.plot(wnum,np.abs(B),'k',linewidth=1,label=r'$x_{max}='+str(np.round(xmax,3))+'$ cm')
-    plt.plot(wnum,np.abs(B_clip),'r',linewidth=1,label=r'Reduced $x_{max}$ (DFT)')
+    plt.plot(wnum,np.abs(B_clip),'r',linewidth=1,label=r'Reduced $x_{max}$')
     rectangle = patches.Polygon([[zoom[0],zoom[2]],
                                  [zoom[0],zoom[3]],
                                  [zoom[1],zoom[3]],
@@ -123,8 +123,8 @@ for c in clips:
     plt.xlim([500,1850])
     plt.title(r'$x_{max}='+str(np.round(xmax*c,3))+'$ cm')
     plt.grid()
-    if ctr==len(clips):
-        plt.legend(draggable=True)
+    # if ctr==len(clips):
+        # plt.legend(draggable=True)
     
     inset_ax = inset_axes(ax, width="40%", height="30%", loc='upper right', borderpad=1)
     plt.plot(wnum,np.abs(B),'k',linewidth=1)
@@ -136,11 +136,11 @@ for c in clips:
     
     plt.subplot(2,len(clips),ctr+len(clips))
     plt.plot(wnum_fine,H_real,'k',label=r'$x_{max}='+str(np.round(xmax,3))+'$ cm')
-    plt.plot(wnum_fine,H_th,'r',alpha=0.5,label=r'Reduced $x_{max}$ (theory)')
+    plt.plot(wnum_fine,H_th,'r',alpha=1,label=r'Reduced $x_{max}$')
     # plt.plot(wnum_ds,np.real(Hk)*dx,'.r',label=r'Reduced $x_{max}$ (DFT)')
     
     plt.xlim([wnum_fine[0],wnum_fine[-1]])
-    plt.xticks(np.arange(-5,5),rotation=45)
+    plt.xticks(np.arange(-5,5.1))
     plt.xlabel(r'$\tilde{\nu}$ [cm$^{-1}$]')
     if ctr==1:
         plt.ylabel(r'$H$ [r.u cm]')
