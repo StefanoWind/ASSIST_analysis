@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Effect on spectrum of cut function
+PLot sample spectra
 """
 
 import os
@@ -17,7 +17,7 @@ import glob
 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 16
+matplotlib.rcParams['font.size'] = 18
 
 #%% Inputs
 source_met=os.path.join(cd,'data/sb.met.z01.b0')
@@ -30,6 +30,8 @@ hour_sel=6#select hour
 k=1.380649*10**-23#[J/Kg] Boltzman's constant
 h=6.62607015*10**-34#[J s] Plank's constant
 c=299792458.0#[m/s] speed of light
+
+wnum_Tb=650#[cm^-1]
 
 #%% Initalization
 
@@ -61,23 +63,43 @@ RH_sel=np.float64(Data_met.relative_humidity.interp({'time':utl.num_to_dt64(tnum
 wnum=np.arange(500,3025)+0.0
 
 #%% Main
-
 B=2*h*c**2*wnum**3/(np.exp(h*c*wnum*100/(k*(273.15+T_sel)))-1)*10**11
 
+#brightness temperature
+Tb_cha=100*h*c*Data_cha.wnum/k/np.log(2*10**11*c**2*h*Data_cha.wnum**3/Data_cha_sel.mean_rad+1)-273.15
+
+#brightness temperature
+Tb_chb=100*h*c*Data_chb.wnum/k/np.log(2*10**11*c**2*h*Data_chb.wnum**3/Data_chb_sel.mean_rad+1)-273.15
 
 #%% Plots
-plt.figure()
+fig=plt.figure(figsize=(8,10))
+plt.subplot(2,1,1)
 plt.plot(Data_cha.wnum,Data_cha_sel.mean_rad,'b',label='Channel A',linewidth=1)
 plt.plot(Data_chb.wnum,Data_chb_sel.mean_rad,'r',label='Channel B',linewidth=1)
-plt.plot(wnum,B,'k',label=r'BB at $T='+str(T_sel)+'^\circ$C')
-
-plt.xlabel(r'$\tilde{\nu}$')
+plt.plot(wnum,B,'k',label=r'$B_0(\tilde{\nu},T_s)$')
+plt.xlim([500,3050])
+plt.ylim([0,170])
 plt.ylabel(r'$B$ [r.u.]')
 plt.grid()
 plt.title(utl.datestr(tnum_sel,'%Y-%m-%d %H:%M UTC'))
 if cbh_sel>0:
-    plt.text(2000,120,r'$T_s='+str(T_sel)+'^\circ$C'+'\n'+r'RH$_s='+str(int(RH_sel))+'$ %' +'\n'+ 'CBH $='+str(int(cbh_sel))+' m')
+    plt.text(2000,120,r'$T_s='+str(int(T_sel))+'^\circ$C'+'\n'+r'RH$_s='+str(int(RH_sel))+'$%' +'\n'+ 'CBH $='+str(int(cbh_sel))+'$ m',\
+             bbox=dict( facecolor='w', edgecolor='k', alpha=0.25),fontsize=20)
 else:
-    plt.text(2000,120,r'$T_s='+str(T_sel)+'^\circ$C'+'\n'+r'RH$_s='+str(int(RH_sel))+'$ %' +'\n'+ 'No clouds')
-plt.legend(draggable=True)
+    plt.text(2000,120,r'$T_s='+str(int(T_sel))+'^\circ$C'+'\n'+r'RH$_s='+str(int(RH_sel))+'$%' +'\n'+ 'No clouds',\
+             bbox=dict( facecolor='w', edgecolor='k', alpha=0.25),fontsize=20)
+# plt.legend(draggable=True)
+plt.gca().set_xticklabels([])
+
+plt.subplot(2,1,2)
+plt.plot(Data_cha.wnum,Tb_cha,'b',label='Channel A',linewidth=1)
+plt.plot(Data_chb.wnum,Tb_chb,'r',label='Channel B',linewidth=1)
+plt.xlim([500,3050])
+plt.ylim([-60,85])
+plt.xlabel(r'$\tilde{\nu}$ [cm$^{-1}$]')
+plt.ylabel(r'$T_b(\tilde{\nu})$ [$^\circ$C]')
+plt.grid()
 plt.tight_layout()
+
+# utl.remove_labels(fig)
+plt.subplots_adjust(hspace=0.1)
