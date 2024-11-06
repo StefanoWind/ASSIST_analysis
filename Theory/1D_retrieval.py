@@ -21,7 +21,7 @@ from scipy.linalg import sqrtm
 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 14
+matplotlib.rcParams['font.size'] = 16
 
 
 #%% Inputs
@@ -43,7 +43,7 @@ y=np.arange(-10,30,.1)
 X,Y=np.meshgrid(x,y)
 
 #%% Plots
-fig=plt.figure(figsize=(18,9))
+fig=plt.figure(figsize=(18,7))
 gs = gridspec.GridSpec(3, 6, height_ratios=[1,5, 1],width_ratios=[1,5,1,5,1,5])
 
 ctr=0
@@ -73,7 +73,7 @@ for sigma_a,sigma_e in zip(sigmas_a,sigmas_e):
     
     ax = fig.add_subplot(gs[1, ctr+1])
     plt.pcolor(X,Y,Pxy_bayes,cmap='hot')
-    plt.plot(x,x,'g',label='1:1')
+    plt.plot(x,x,'g',label=r'$kx$')
     plt.plot(x,y_hat,'m',label=r'$\hat{x}$')
     plt.xlim([-10,30])
     plt.ylim([-10,30])
