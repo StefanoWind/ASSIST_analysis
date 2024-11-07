@@ -12,6 +12,7 @@ from matplotlib import pyplot as plt
 import matplotlib
 from scipy.linalg import sqrtm
 import matplotlib.gridspec as gridspec
+from scipy.signal import find_peaks
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 16
@@ -96,6 +97,59 @@ x_hat=x_a_rep+G @ (y-K @ x_a_rep)
 S_s=(A-np.eye(n))@S_a@(A-np.eye(n)).T#smoothing error
 S_n=G@S_e@G.T#noise error
 
+#resolution
+zc1=[]
+zc2=[]
+for i in range(n):
+    
+    pos_peaks=np.unique(find_peaks(A[i,:])[0])
+    if A[i,0] > A[i,1]:  # Left edge
+        pos_peaks = np.append(0,pos_peaks)
+    if A[i,-1] > A[i,-2]:  # Left edge
+        pos_peaks = np.append(pos_peaks, n)
+    
+    neg_peaks=np.unique(np.concatenate(([0],find_peaks(-A[i,:])[0],[n])))
+    
+    peak_sel=pos_peaks[np.argmin(np.abs(pos_peaks-i))]
+    
+    if peak_sel==0:
+        j1=0
+        j2=neg_peaks[np.where(neg_peaks>peak_sel)[0][0]]
+    elif peak_sel==n:
+        j1=neg_peaks[np.where(neg_peaks<peak_sel)[0][-1]]
+        j2=n
+    else:
+        j1=neg_peaks[np.where(neg_peaks<=peak_sel)[0][-1]]
+        j2=neg_peaks[np.where(neg_peaks>peak_sel)[0][0]]
+        
+    
+    f=A[i,j1:j2]/np.max(A[i,j1:j2])-0.5
+    z_sel=z[j1:j2]
+    
+    zc_ind=np.where(f[:-1]*f[1:]<0)[0]
+    
+    if len(zc_ind)==2:
+        zc_ind1=zc_ind[0]
+        zc_ind2=zc_ind[1]
+        
+        zc1=np.append(zc1,(z_sel[zc_ind1+1]-z_sel[zc_ind1])/(f[zc_ind1+1]-f[zc_ind1])*(-f[zc_ind1])+z_sel[zc_ind1])
+        zc2=np.append(zc2,(z_sel[zc_ind2+1]-z_sel[zc_ind2])/(f[zc_ind2+1]-f[zc_ind2])*(-f[zc_ind2])+z_sel[zc_ind2])
+        
+    elif len(zc_ind)==1:
+        if f[zc_ind]>0:
+            zc_ind2=zc_ind[0]
+            
+            zc1=np.append(zc1,z_sel[0])
+            zc2=np.append(zc2,(z_sel[zc_ind2+1]-z_sel[zc_ind2])/(f[zc_ind2+1]-f[zc_ind2])*(-f[zc_ind2])+z_sel[zc_ind2])
+        else:
+            zc_ind1=zc_ind[0]
+            
+            zc1=np.append(zc1,(z_sel[zc_ind1+1]-z_sel[zc_ind1])/(f[zc_ind1+1]-f[zc_ind1])*(-f[zc_ind1])+z_sel[zc_ind1])
+            zc2=np.append(zc2,np.nan)
+
+    
+        
+
 #%% Plots
 plt.close('all')
 
@@ -136,66 +190,44 @@ for i in range(m):
     plt.grid()
 plt.tight_layout()
 
-#prior
-fig=plt.figure(figsize=(18,8))
-gs = gridspec.GridSpec(1, 3, width_ratios=[1,3,0.25])  # 0.1 row for the colorbars
-ax=fig.add_subplot(gs[0,0])
-plt.plot(x_a,z,'k')
-plt.ylim([0,80])
-plt.xlabel(r'$x_a$ [K]')
-plt.ylabel(r'$z$')
-plt.grid()
-
-ax=fig.add_subplot(gs[0,1])
-pc=plt.pcolor(S_a,cmap='hot',vmin=0,vmax=sigma_a**2)
-plt.xlabel(r'$z$')
-plt.grid()
-
-cbar_ax=fig.add_subplot(gs[0,2])
-cbar=fig.colorbar(pc, cax=cbar_ax,label=r'$S_a$ [K$^2$]')
-
-#prior check
-fig=plt.figure(figsize=(18,8))
-gs = gridspec.GridSpec(1, 3, width_ratios=[1,3,0.25])  # 0.1 row for the colorbars
-ax=fig.add_subplot(gs[0,0])
-plt.plot(x_a2,z,'k')
-plt.ylim([0,80])
-plt.xlabel(r'$x_a$ [K]')
-plt.ylabel(r'$z$')
-plt.grid()
-
-ax=fig.add_subplot(gs[0,1])
-pc=plt.pcolor(S_a2,cmap='hot',vmin=0,vmax=sigma_a**2)
-plt.xlabel(r'$z$')
-plt.grid()
-
-cbar_ax=fig.add_subplot(gs[0,2])
-cbar=fig.colorbar(pc, cax=cbar_ax,label=r'$S_a$ [K$^2$]')
-
 #posterior stdev
-plt.figure()
-plt.scatter(np.std(x_hat-x,axis=1),z,s=10,edgecolor='k',facecolor=None,label='Monte Carlo, total')
-plt.plot(np.diag(S_hat)**0.5,z,'k',label='Theory, total')
-plt.plot(np.diag(S_s)**0.5,z,'--k',label='Theory, smoothing')
-plt.plot(np.diag(S_n)**0.5,z,'-.k',label='Theory, noise')
-plt.xlabel(r'$\sigma (\hat{x}-x)$ [K]')
-plt.ylabel(r'$z$')
+plt.figure(figsize=(18,6))
+
+plt.plot(np.diag(S_a)**0.5,z,'r',label='Theory, prior')
+plt.scatter(np.diag(S_a2)**0.5,z,s=15,edgecolor='k',facecolor='r',label='Monte Carlo, prior')
+plt.plot(np.diag(S_hat)**0.5,z,'k',label='Theory, posterior')
+plt.scatter(np.std(x_hat-x,axis=1),z,s=15,edgecolor='k',facecolor='k',label='Monte Carlo, posterior',marker='s')
+plt.plot(np.diag(S_s)**0.5,z,'--k',label='Theory, posterior (smoothing)')
+plt.plot(np.diag(S_n)**0.5,z,'-.k',label='Theory, postrior (noise)')
+
+plt.xlabel(r'Standard deviation [K]')
+plt.ylabel(r'$z$ [Km]')
 plt.grid()
 plt.legend()
 plt.tight_layout()
 
-#posterior covariance
+#prior and posterior covariance
+cov_mc=np.zeros((n,n))+np.nan
+cov_mc[I<J]=S_hat[I<J]
+cov_mc[I>J]=S_a[I>J]
+
+cov_mc2=np.zeros((n,n))+np.nan
+cov_mc2[I<J]=np.cov(x_hat-x)[I<J]
+cov_mc2[I>J]=S_a2[I>J]
+
 fig=plt.figure(figsize=(18,8))
 gs = gridspec.GridSpec(1, 3, width_ratios=[3,3,0.25])
 ax=fig.add_subplot(gs[0,0])
-pc=plt.pcolor(np.cov(x_hat-x),cmap='seismic',vmin=-np.max(S_hat),vmax=np.max(S_hat))
-plt.xlabel(r'$z$')
-plt.ylabel(r'$z$')
+pc=plt.pcolor(cov_mc,cmap='seismic',vmin=-np.max(S_hat),vmax=np.max(S_hat))
+ax.set_facecolor("lightgray")
+plt.xlabel(r'$z$ [Km]')
+plt.ylabel(r'$z$ [Km]')
 ax=fig.add_subplot(gs[0,1])
-plt.pcolor(S_hat,cmap='seismic',vmin=-np.max(S_hat),vmax=np.max(S_hat))
-plt.xlabel(r'$z$')
+plt.pcolor(cov_mc2,cmap='seismic',vmin=-np.max(S_hat),vmax=np.max(S_hat))
+ax.set_facecolor("lightgray")
+plt.xlabel(r'$z$ [Km]')
 cbar_ax=fig.add_subplot(gs[0,2])
-cbar=fig.colorbar(pc, cax=cbar_ax,label=r'$S(\hat{x}-x)$ [K$^2$]')
+cbar=fig.colorbar(pc, cax=cbar_ax,label=r'Covariance [K$^2$]')
 
 #selected cases
 plt.figure(figsize=(18,8))
@@ -211,7 +243,7 @@ plt.plot(x_hat[:,i],z,'r',label=r'$\hat{x}$')
 plt.xlim([100,350])
 plt.ylim([0,80])
 plt.xlabel(r'$x_a$ [K]')
-plt.ylabel(r'$z$')
+plt.ylabel(r'$z$ [Km]')
 plt.grid()
 plt.text(110,7,'$\sqrt{\overline{\epsilon_t^2}}='+str(np.round(err_all[i],2))+'$ K',bbox={'facecolor':'w','alpha':0.5})
 
@@ -220,21 +252,47 @@ i=err_index[int(L_mc/2)]
 plt.plot(x_a,z,'--k',label=r'$x_a$')
 plt.plot(x[:,i],z,'k',label=r'$x$')
 plt.plot(x_hat[:,i],z,'r',label=r'$\hat{x}$')
-plt.xlim([100,350])
+plt.xlim([150,300])
 plt.ylim([0,80])
 plt.xlabel(r'$x_a$ [K]')
 plt.grid()
-plt.text(110,7,'$\sqrt{\overline{\epsilon_t^2}}='+str(np.round(err_all[i],2))+'$ K',bbox={'facecolor':'w','alpha':0.5})
+plt.text(160,7,'$\sqrt{\overline{\epsilon_t^2}}='+str(np.round(err_all[i],2))+'$ K',bbox={'facecolor':'w','alpha':0.5})
 
 plt.subplot(1,3,3)
 i=err_index[-1]
 plt.plot(x_a,z,'--k',label=r'$x_a$')
 plt.plot(x[:,i],z,'k',label=r'$x$')
 plt.plot(x_hat[:,i],z,'r',label=r'$\hat{x}$')
-plt.xlim([100,350])
+plt.xlim([150,300])
 plt.ylim([0,80])
 plt.xlabel(r'$x_a$ [K]')
 plt.grid()
-plt.text(110,7,'$\sqrt{\overline{\epsilon_t^2}}='+str(np.round(err_all[i],2))+'$ K',bbox={'facecolor':'w','alpha':0.5})
+plt.text(160,7,'$\sqrt{\overline{\epsilon_t^2}}='+str(np.round(err_all[i],2))+'$ K',bbox={'facecolor':'w','alpha':0.5})
     
 plt.legend()
+
+
+#resolution
+fig=plt.figure(figsize=(18,8))
+gs = gridspec.GridSpec(1, 3, width_ratios=[3,1,1])
+ax=fig.add_subplot(gs[0,0])
+plt.pcolor(A,cmap='seismic',vmin=[-0.5,0.5])
+plt.plot(zc1,z,'k')
+plt.plot(zc2,z,'k')
+plt.xlabel(r'$z$ [Km]')
+plt.ylabel(r'$z$ [Km]')
+
+ax=fig.add_subplot(gs[0,1])
+plt.plot(zc2-zc1,z,'k')
+plt.xlabel(r'Vertical resolution [Km]')
+plt.ylabel(r'$z$ [Km]')
+plt.xlim([0,50])
+plt.ylim([0,80])
+plt.grid()
+
+ax=fig.add_subplot(gs[0,2])
+plt.plot(np.diag(A),z,'k')
+plt.ylim([0,80])
+plt.xlabel(r'DOFs')
+plt.ylabel(r'$z$ [Km]')
+plt.grid()
