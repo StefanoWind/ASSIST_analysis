@@ -1,1 +1,0 @@
-Reprocess sg.assist.z01 before calibration
