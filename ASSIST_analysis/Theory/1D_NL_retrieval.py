@@ -87,6 +87,9 @@ for b in bs:
     plt.plot(x_hat,y,'.m',label=r'$\hat{x}$')
     plt.xlim([-10,30])
     plt.ylim([-10,30])
+    plt.xlabel(r'$x$')
+    if ctr==0:
+        plt.ylabel(r'$y$')
     plt.grid()
     ax.set_xticks([])
     ax.set_yticks([])
@@ -99,8 +102,8 @@ for b in bs:
 
     #P(x|y)
     ax = fig.add_subplot(gs[0, ctr+1])
-    plt.plot(x,Gauss(x,x_hat[y==y_sel],sigma)/np.max(Gauss(x,x_hat[y==y_sel],sigma)),'k')
-    plt.plot(x,px_y_mc/np.max(px_y_mc),'.r')
+    plt.plot(x,Gauss(x,x_hat[y==y_sel],sigma)/np.max(Gauss(x,x_hat[y==y_sel],sigma)),'k',label='Theory')
+    plt.plot(x,px_y_mc/np.max(px_y_mc),'sk',label='Monte Carlo',markersize=3)
     
     ax.set_xticks([])
     ax.set_yticks([])
@@ -109,8 +112,8 @@ for b in bs:
     plt.ylabel(r'$P(x|y)$')
 
     ctr+=2
-    
-
+plt.legend(draggable=True)
+plt.tight_layout()
     
     
     
