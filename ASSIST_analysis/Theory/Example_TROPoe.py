@@ -14,8 +14,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 import warnings
 import matplotlib
-import pandas as pd
-import glob 
 import matplotlib.gridspec as gridspec
 import matplotlib.dates as mdates
 from datetime import datetime
@@ -34,11 +32,13 @@ source='data/rhod.assist.tropoe.z01.c0.20240714.011005.nc'
 Data=xr.open_dataset(source)
 date=str(Data.time.values[0])[:10]
 
-#graphics
-max_z=2#[Km]
+#qc
 max_gamma=1
 max_rmsa=5
 min_lwp=5#[g/m^1]
+
+#graphics
+max_z=2#[Km]
 ticks={'temperature':np.arange(15,30.1),'waterVapor':np.arange(0,15.1),'sigma_temperature':np.arange(0,2.1,0.1)}
 sel_time=[43,100]
 
@@ -46,17 +46,15 @@ sel_time=[43,100]
 
 #qc data
 Data['cbh'][Data['lwp']<min_lwp]=Data['height'].max()
-
-Data['temperature_qc']=Data['temperature'].where(Data['gamma']<=max_gamma).where(Data['rmsa']<=max_rmsa).where(Data['height']<=Data['cbh'])#[C]
-Data['waterVapor_qc']=  Data['waterVapor'].where(Data['gamma']<=max_gamma).where(Data['rmsa']<=max_rmsa).where(Data['height']<=Data['cbh'])#[g/Kg]
-
+Data['temperature_qc']=Data['temperature'].where(Data['gamma']<=max_gamma).where(Data['rmsa']<=max_rmsa).where(Data['height']<=Data['cbh'])
+Data['waterVapor_qc']=  Data['waterVapor'].where(Data['gamma']<=max_gamma).where(Data['rmsa']<=max_rmsa).where(Data['height']<=Data['cbh'])
 
 #%% Plots
 
 #plot profiles, vres, qc
 plt.close('all')
 fig=plt.figure(figsize=(18,10))
-gs = gridspec.GridSpec(5, 3, height_ratios=[5,5,1,1,1],width_ratios=[1,5,0.1])
+gs = gridspec.GridSpec(5, 3, height_ratios=[5,5,2,2,2],width_ratios=[1,5,0.075])
 
 Data=Data.resample(time=str(np.median(np.diff(Data['time']))/np.timedelta64(1,'m'))+'min').nearest(tolerance='1min')
 
@@ -67,6 +65,7 @@ plt.grid()
 ax0.set_ylabel(r'$z$ [Km]')
 ax0.set_xlim([0,5])
 ax0.set_ylim([0, max_z])
+ax0.set_xticklabels([])
 
 ax1=fig.add_subplot(gs[0,1])
 CS=plt.contourf(Data.time,Data.height,Data.temperature_qc.T,ticks['temperature'],cmap='hot',extend='both')
@@ -107,7 +106,7 @@ cb.set_label(r'$r$ [g Kg$^{-1}$]')
 
 ax6=fig.add_subplot(gs[2,1])
 plt.plot(Data.time,Data.gamma,'.g')
-plt.plot(Data.time,Data.gamma**0*max_gamma,'--g')
+plt.plot([datetime.strptime(date,'%Y-%m-%d'),datetime.strptime(date,'%Y-%m-%d')+timedelta(days=1)],[max_gamma,max_gamma],'--g')
 plt.ylabel(r'$\gamma$')
 plt.grid()
 ax6.set_xlim([datetime.strptime(date,'%Y-%m-%d'),datetime.strptime(date,'%Y-%m-%d')+timedelta(days=1)])
@@ -115,7 +114,7 @@ ax6.xaxis.set_major_formatter(mdates.DateFormatter(''))
 
 ax7=fig.add_subplot(gs[3,1])
 plt.plot(Data.time,Data.rmsa,'.r')
-plt.plot(Data.time,Data.rmsa**0*max_rmsa,'--r')
+plt.plot([datetime.strptime(date,'%Y-%m-%d'),datetime.strptime(date,'%Y-%m-%d')+timedelta(days=1)],[max_rmsa,max_rmsa],'--r')
 plt.ylabel('RMSA')
 ax7.set_xlim([datetime.strptime(date,'%Y-%m-%d'),datetime.strptime(date,'%Y-%m-%d')+timedelta(days=1)])
 ax7.xaxis.set_major_formatter(mdates.DateFormatter(''))
@@ -123,16 +122,15 @@ plt.grid()
 
 ax8=fig.add_subplot(gs[4,1])
 plt.plot(Data.time,Data.lwp,'.b')
-plt.plot(Data.time,Data.lwp**0*min_lwp,'--b')
+plt.plot([datetime.strptime(date,'%Y-%m-%d'),datetime.strptime(date,'%Y-%m-%d')+timedelta(days=1)],[min_lwp,min_lwp],'--b')
 plt.ylabel(r'LWP [g m$^{-2}$]')
 plt.grid()
 ax8.set_xlabel('Time (UTC)')
 ax8.set_xlim([datetime.strptime(date,'%Y-%m-%d'),datetime.strptime(date,'%Y-%m-%d')+timedelta(days=1)])
 ax8.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 
-
 #plot uncertianties
-fig=plt.figure(figsize=(18,8))
+fig=plt.figure(figsize=(18,6))
 ax1=plt.subplot(2,1,1)
 
 CS=plt.contourf(Data.time,Data.height,Data.sigma_temperature.T,ticks['sigma_temperature'],cmap='coolwarm',extend='max')
