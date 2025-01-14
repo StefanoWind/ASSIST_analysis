@@ -6,20 +6,17 @@ import os
 cd=os.path.dirname(__file__)
 import numpy as np
 import sys
-sys.path.append('C:/Users/SLETIZIA/OneDrive - NREL/Desktop/Main/utils')
-import utils as utl
-import matplotlib.gridspec as gridspec
 import xarray as xr
 import matplotlib
 from matplotlib.patches import Rectangle
-
-import matplotlib.dates as mdates
 from matplotlib import pyplot as plt
+import yaml
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 12
 
 #%% Inputs
+source_config=os.path.join(cd,'configs','config.yaml')
 source=os.path.join(cd,'data','20220515.20220801.irs.cbh.nc')
 
 T_amb=20#[C]
@@ -42,6 +39,14 @@ tropoe_bands= np.array([[612.0,618.0],
 
 
 #%% Initialization
+#config
+with open(source_config, 'r') as fid:
+    config = yaml.safe_load(fid)
+    
+#imports
+sys.path.append(config['path_utils'])
+import utils as utl
+
 Data=xr.open_dataset(source)
 
 #%% Main

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Add cluod information to spectra
+Add cloud information to spectra
 """
 import os
 cd=os.path.dirname(__file__)
@@ -15,13 +15,13 @@ matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 12
 
 #%% Inputs
-source_irs=os.path.join(cd,'data','20220515.20220801.irs.nc')
-source_cbh=os.path.join(cd,'data','20220515.20220801.cbh.nc')
+source_irs=os.path.join(cd,'data','20220510.20220825.irs.nc')
+source_cbh=os.path.join(cd,'data','20220510.20220825.cbh.nc')
 cloud_window=np.timedelta64(3600,'s')#cloud search window
 wnum_cbh=900#[cm^-1] wnum sensitive to clouds
 
 #graphics
-N_days_plot=7
+N_days_plot=7#number of days to plot in one figure
 
 #%% Initialization
 Data_irs=xr.open_dataset(source_irs)

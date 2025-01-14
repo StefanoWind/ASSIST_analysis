@@ -6,21 +6,16 @@ import os
 cd=os.path.dirname(__file__)
 import sys
 import numpy as np
-from matplotlib import pyplot as plt
 import yaml
 import xarray as xr
 import glob
-import matplotlib
 
-matplotlib.rcParams['font.family'] = 'serif'
-matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 18
 
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
-sdate='2022-05-15'
-edate='2022-08-01'
-download=False
+sdate='2022-05-10'#[%Y-%m-%d] start date
+edate='2022-08-25'#[%Y-%m-%d] end date
+download=True#download new files?
 channel='awaken/nwtc.ceil.z01.b0'
 
 #%% Initalization
@@ -29,9 +24,7 @@ with open(source_config, 'r') as fid:
     config = yaml.safe_load(fid)
     
 #imports
-sys.path.append(config['path_utils'])
 sys.path.append(config['path_dap'])
-import utils as utl
 from doe_dap_dl import DAP
 
 #%% Main
@@ -49,13 +42,11 @@ if download:
         
     os.makedirs(os.path.join(cd,'data',channel),exist_ok=True)
     a2e.download_with_order(_filter, path=os.path.join('data',channel),replace=False)
-        
-        
+    
 #extract cbh
 cbh=None
 files=glob.glob(os.path.join(cd,'data',channel,'*nc'))
 for f in files:
-    
     Data=xr.open_dataset(f).sortby('time')
     Data['time']=np.datetime64('1970-01-01T00:00:00')+Data.time*np.timedelta64(1, 's')
     

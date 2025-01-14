@@ -6,21 +6,15 @@ import os
 cd=os.path.dirname(__file__)
 import sys
 import numpy as np
-from matplotlib import pyplot as plt
 import yaml
 import xarray as xr
 import glob
-import matplotlib
-
-matplotlib.rcParams['font.family'] = 'serif'
-matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 18
 
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
-sdate='2022-05-15'
-edate='2022-08-01'
-download=False
+sdate='2022-05-10'#[%Y-%m-%d] start date
+edate='2022-08-25'#[%Y-%m-%d] end date
+download=True#download new files?
 channels=['awaken/nwtc.assist.z02.00',
           'awaken/nwtc.assist.z03.00']
 
@@ -32,9 +26,9 @@ tropoe_bands= np.array([[612.0,618.0],
                         [793.0,804.0],
                         [860.1,864.0],
                         [872.2,877.5],
-                        [898.2,905.4]])
+                        [898.2,905.4]])#cm[^-1]
 
-max_time_diff=np.timedelta64(6,'s')#[s]
+max_time_diff=np.timedelta64(6,'s')#[s] maximum time difference between two IRS spectra
 
 #%% Initalization
 #config
@@ -42,11 +36,10 @@ with open(source_config, 'r') as fid:
     config = yaml.safe_load(fid)
     
 #imports
-sys.path.append(config['path_utils'])
 sys.path.append(config['path_dap'])
-import utils as utl
 from doe_dap_dl import DAP
 
+#selected wnum band
 wnum_min=np.min(tropoe_bands)-10
 wnum_max=np.max(tropoe_bands)+10
 
@@ -66,7 +59,6 @@ if download:
         os.makedirs(os.path.join(cd,'data',channel),exist_ok=True)
         a2e.download_with_order(_filter, path=os.path.join('data',channel),replace=False)
         
-        
 #extract radiance
 rad={}
 for channel in channels:
@@ -74,14 +66,12 @@ for channel in channels:
     files=glob.glob(os.path.join(cd,'data',channel,'*cdf'))
     
     for f in files:
-        
         Data=xr.open_dataset(f).sortby('time')
         Data['time']=np.datetime64('1970-01-01T00:00:00')+Data.base_time*np.timedelta64(1, 'ms')+Data.time*np.timedelta64(1, 's')
-        raise BaseException()
+        
         if Data['time'].values[-1]>np.datetime64(sdate+'T00:00:00') and Data['time'].values[0]<np.datetime64(edate+'T00:00:00'):
             rad_qc=Data['mean_rad'].where(np.abs(Data.sceneMirrorAngle)<0.1).where(Data.hatchOpen==1)
             rad_sel=rad_qc.sel(wnum=slice(wnum_min,wnum_max))
-            
             if rad[channel] is None:
                 rad[channel]=rad_sel
             else:
@@ -94,7 +84,6 @@ for channel in channels:
 time1=rad[channels[0]].time.values
 time2=rad[channels[1]].time.values
 time_diff = abs(time1[:, None] - time2[None, :])
-
 i_synch=np.argmin(time_diff,axis=1)
 min_time_diff=np.min(time_diff,axis=1)
 synch1=min_time_diff<=max_time_diff
@@ -102,14 +91,13 @@ synch2=i_synch[synch1]
 time1_synch=time1[synch1]
 time2_synch=time2[synch2]
 
+#build common structure
 time_synch=time1_synch+(time2_synch-time1_synch)/2
-
 wnum_synch=rad[channels[0]].wnum.values
 
 rad_all=np.zeros((len(time_synch),len(wnum_synch),2))
 rad_all[:,:,0]=rad[channels[0]].values[synch1,:]
 rad_all[:,:,1]=rad[channels[1]].values[synch2,:]
-
 
 #%% Output
 Output=xr.Dataset()
