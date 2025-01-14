@@ -54,6 +54,7 @@ if download:
             'date_time': {
                 'between': [sdate.replace('-',''),edate.replace('-','')]
             },
+            'ext1':'assistcha',
         }
         
         os.makedirs(os.path.join(cd,'data',channel),exist_ok=True)
