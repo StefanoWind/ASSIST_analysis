@@ -66,7 +66,7 @@ for sigma_a,sigma_e in zip(sigmas_a,sigmas_e):
             exponent=np.matmul(np.matmul(xx.T,np.linalg.inv(S)),xx)
             Pxy_check[j,i]=1/(2*np.pi)/S_sqrtm*np.exp(-0.5*exponent)
             
-    print('Max error on P(x,y) = '+str(np.max(np.abs(Pxy_bayes-Pxy_check))))
+    print('Max error on p(x,y) = '+str(np.max(np.abs(Pxy_bayes-Pxy_check))))
     
     #retrieval mean
     y_hat=((sigma_a**2+sigma_e**2)*x-xa*sigma_e**2)/sigma_a**2
@@ -98,7 +98,7 @@ for sigma_a,sigma_e in zip(sigmas_a,sigmas_e):
     ax.set_yticklabels([])
     if ctr==0:
         plt.ylabel(r'$y$')
-    plt.xlabel(r'$P(y|x)$')
+    plt.xlabel(r'$p(y|x)$')
     
     #P(x|y)
     ax = fig.add_subplot(gs[0, ctr+1])
@@ -109,14 +109,14 @@ for sigma_a,sigma_e in zip(sigmas_a,sigmas_e):
     ax.set_yticks([])
     ax.set_xticklabels([])
     ax.set_yticklabels([])
-    plt.ylabel(r'$P(x|y)$')
+    plt.ylabel(r'$p(x|y)$')
     
     #P(x)
     ax = fig.add_subplot(gs[2, ctr+1])
     plt.plot(x,Gauss(x,xa,sigma_a),'k')
     plt.xlim([-10,30])
     plt.xlabel(r'$x$')
-    plt.ylabel(r'$P(x)$')
+    plt.ylabel(r'$p(x)$')
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_xticklabels([])

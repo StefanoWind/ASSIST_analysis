@@ -23,7 +23,7 @@ plt.close('all')
 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm' 
-matplotlib.rcParams['font.size'] = 14
+matplotlib.rcParams['font.size'] = 16
 
 #%% Inputs
 source='data/rhod.assist.tropoe.z01.c0.20240714.011005.nc'
@@ -45,9 +45,11 @@ sel_time=[43,100]
 #%% Main
 
 #qc data
-Data['cbh'][Data['lwp']<min_lwp]=Data['height'].max()
-Data['temperature_qc']=Data['temperature'].where(Data['gamma']<=max_gamma).where(Data['rmsa']<=max_rmsa).where(Data['height']<=Data['cbh'])
-Data['waterVapor_qc']=  Data['waterVapor'].where(Data['gamma']<=max_gamma).where(Data['rmsa']<=max_rmsa).where(Data['height']<=Data['cbh'])
+Data['cbh'][Data['lwp']<min_lwp]=Data['height'].max()#remove clouds with low lwp
+Data['temperature_qc']=Data['temperature'].where(Data['gamma']<=max_gamma)\
+    .where(Data['rmsa']<=max_rmsa).where(Data['height']<=Data['cbh'])#filter temperature
+Data['waterVapor_qc']=  Data['waterVapor'].where(Data['gamma']<=max_gamma)\
+    .where(Data['rmsa']<=max_rmsa).where(Data['height']<=Data['cbh'])#filter mixing ratio
 
 #%% Plots
 
@@ -161,13 +163,15 @@ ax2.set_facecolor((0.9,0.9,0.9))
 cb = fig.colorbar(CS)
 cb.set_label(r'$\sigma(r)$ [g Kg$^{-1}$]')
 
-ctr=1
+
 fig=plt.figure(figsize=(18,8))
+gs = gridspec.GridSpec(1, 3,width_ratios=[1,1,0.075])
+ctr=0
 for s in sel_time:
     A=Data.Akernal.sel(time=Data.time[s]).values.T[:110,:110]
     cbh_sel=Data.cbh.sel(time=Data.time[s]).values
-    plt.subplot(1,len(sel_time),ctr)
-    plt.pcolor(A,vmin=-0.3,vmax=0.3,cmap='seismic')
+    fig.add_subplot(gs[0,ctr])
+    PC=plt.pcolor(A,vmin=-0.3,vmax=0.3,cmap='seismic')
     if cbh_sel<Data['height'].max():
         plt.scatter(np.arange(110)*0+np.argmin(np.abs(cbh_sel-Data.height.values)),np.arange(110),15,'w',edgecolor='k')
         plt.scatter(np.arange(110)*0+55+np.argmin(np.abs(cbh_sel-Data.height.values)),np.arange(110),15,'w',edgecolor='k')
@@ -180,5 +184,11 @@ for s in sel_time:
     plt.xticks(np.arange(0,110,5),np.round(np.concatenate([Data.height,Data.height])[::5],1),rotation=45)
     plt.yticks(np.arange(0,110,5),np.round(np.concatenate([Data.height,Data.height])[::5],1),rotation=45)
     plt.xlabel('$z$ [Km]')
-    plt.ylabel('$z$ [Km]')
+    
+    if ctr==0:
+        plt.ylabel('$z$ [Km]')
     ctr+=1
+    print(Data.time[s])
+
+ax=fig.add_subplot(gs[0,2])
+cbar=fig.colorbar(PC, cax=ax,label=r'Value of element of $A$')

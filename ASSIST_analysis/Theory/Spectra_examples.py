@@ -17,15 +17,15 @@ import glob
 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 18
+matplotlib.rcParams['font.size'] = 20
 
 #%% Inputs
 source_met=os.path.join(cd,'data/sb.met.z01.b0')
 
-source_cha=os.path.join(cd,'data/sb.assist.z01.00.20230824.000041.assistcha.cdf')
-source_chb=os.path.join(cd,'data/sb.assist.z01.00.20230824.000041.assistchb.cdf')
-source_ceil=os.path.join(cd,'data/sa1.ceil.z01.b0.20230824.000000.nc')
-hour_sel=6#select hour
+source_cha=os.path.join(cd,'data/sb.assist.z01.00.20230827.000049.assistcha.cdf')
+source_chb=os.path.join(cd,'data/sb.assist.z01.00.20230827.000049.assistchb.cdf')
+source_ceil=os.path.join(cd,'data/sa1.ceil.z01.b0.20230827.000000.nc')
+hour_sel=17.2#select hour
 
 k=1.380649*10**-23#[J/Kg] Boltzman's constant
 h=6.62607015*10**-34#[J s] Plank's constant
@@ -97,7 +97,7 @@ plt.plot(Data_chb.wnum,Tb_chb,'r',label='Channel B',linewidth=1)
 plt.xlim([500,3050])
 plt.ylim([-60,85])
 plt.xlabel(r'$\tilde{\nu}$ [cm$^{-1}$]')
-plt.ylabel(r'$T_b(\tilde{\nu})$ [$^\circ$C]')
+plt.ylabel(r'$T_b$ [$^\circ$C]')
 plt.grid()
 plt.tight_layout()
 
