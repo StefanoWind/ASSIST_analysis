@@ -9,7 +9,8 @@ import numpy as np
 import yaml
 import xarray as xr
 import glob
-
+import warnings
+warnings.filterwarnings('ignore')
 
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
@@ -41,7 +42,7 @@ if download:
     }
         
     os.makedirs(os.path.join(cd,'data',channel),exist_ok=True)
-    a2e.download_with_order(_filter, path=os.path.join('data',channel),replace=False)
+    a2e.download_with_order(_filter, path=os.path.join(cd,'data',channel),replace=False)
     
 #extract cbh
 cbh=None
