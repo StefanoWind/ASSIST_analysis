@@ -1,5 +1,5 @@
-path_dap: '/home/sletizia/codes/dap-py'
-path_utils: '/home/sletizia/codes/utils'
+path_dap: 'C:\Users\SLETIZIA\OneDrive - NREL\Desktop\Main\Custom_functions\dap-py'
+path_utils: 'C:\Users\SLETIZIA\OneDrive - NREL\Desktop\Main\utils'
 username: 'sletizia'
 password: 'pass_DAP1506@'
                 
