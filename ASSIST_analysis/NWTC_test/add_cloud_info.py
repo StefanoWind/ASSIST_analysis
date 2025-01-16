@@ -17,7 +17,7 @@ matplotlib.rcParams['font.size'] = 12
 
 #%% Inputs
 source_irs=os.path.join(cd,'data','*.irs.nc')
-source_cbh=os.path.join(cd,'data','20220515.20220801.cbh.nc')
+source_cbh=os.path.join(cd,'data','*.cbh.nc')
 cloud_window=np.timedelta64(3600,'s')#cloud search window
 wnum_cbh=900#[cm^-1] wnum sensitive to clouds
 
@@ -28,7 +28,8 @@ N_days_plot=7#number of days to plot in one figure
 
 files_irs=glob.glob(source_irs)
 Data_irs=xr.open_mfdataset(files_irs)
-Data_cbh=xr.open_dataset(source_cbh)
+files_cbh=glob.glob(source_cbh)
+Data_cbh=xr.open_mfdataset(files_cbh)
 
 #%% Main
 
@@ -48,7 +49,8 @@ Data_irs['rad_std']=xr.DataArray(data=rad_std,coords={'time':Data_irs.time,'chan
 
 #%% Output
 Data_irs.to_netcdf(os.path.join(cd,'data',
-                               str(np.min(Data_irs.time.values))[:10].replace('-','')+'.'+str(np.max(Data_irs.time.values))[:10].replace('-','')+'.irs.nc').replace('irs','irs.cbh'))
+                 str(np.min(Data_irs.time.values))[:10].replace('-','')\
+            +'.'+str(np.max(Data_irs.time.values))[:10].replace('-','')+'.irs.nc').replace('irs','irs_with_cbh'))
 
 #%% Plots
 os.makedirs(os.path.join(cd,'figures','cbh'),exist_ok=True)
