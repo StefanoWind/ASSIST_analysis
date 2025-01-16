@@ -10,15 +10,17 @@ import yaml
 import xarray as xr
 import glob
 import warnings
+import re
 warnings.filterwarnings('ignore')
 
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
 sdate='2022-05-10'#[%Y-%m-%d] start date
 edate='2022-08-25'#[%Y-%m-%d] end date
-download=True#download new files?
+download=False#download new files?
 channels=['awaken/nwtc.assist.z02.00',
           'awaken/nwtc.assist.z03.00']
+time_increment=7#[days] chunk of files processed at a time
 
 tropoe_bands= np.array([[612.0,618.0],
                         [624.0,660.0],
@@ -62,31 +64,49 @@ if download:
         os.makedirs(os.path.join(cd,'data',channel),exist_ok=True)
         a2e.download_with_order(_filter, path=os.path.join(cd,'data',channel),replace=False)
         
+#set up processing bins
+time_file={}
+files={}
+for channel in channels:
+    time_file[channel]=np.array([],dtype='datetime64')
+    files[channel]=np.array(sorted(glob.glob(os.path.join(cd,'data',channel,'*cdf'))))
+    for f in files[channel]:
+        datestr = re.search(r'\d{8}\.\d{6}', f).group(0)
+        datestr_np=f"{datestr[:4]}-{datestr[4:6]}-{datestr[6:8]}T{datestr[9:11]}:{datestr[11:13]}:{datestr[13:15]}"
+        time_file[channel]=np.append(time_file[channel],np.datetime64(datestr_np))
+
+time_bins=np.arange(np.datetime64(sdate+'T00:00:00'),
+                    np.datetime64(edate+'T00:00:00')+np.timedelta64(time_increment, 'D'),
+                    np.timedelta64(time_increment, 'D'))
+    
 #extract radiance
-for month in np.arange(1,13):
+for t1,t2 in zip(time_bins[:-1],time_bins[1:]):
     rad={}
     for channel in channels:
         rad[channel]=None
-        files=sorted(glob.glob(os.path.join(cd,'data',channel,f'*{sdate[:4]}{month:02d}*cdf')))
-        if len(files)==0:
-            files=sorted(glob.glob(os.path.join(cd,'data',channel,f'*{edate[:4]}{month:02d}*cdf')))
-        if len(files)==0:
+        sel=(time_file[channel]>=t1)*(time_file[channel]<t2)
+        files_sel=files[channel][sel]
+        if len(files_sel)==0:
             break
-        for f in files:
+        for f in files_sel:
+            
+            #load data
             Data=xr.open_dataset(f).sortby('time')
             Data['time']=np.datetime64('1970-01-01T00:00:00')+Data.base_time*np.timedelta64(1, 'ms')+Data.time*np.timedelta64(1, 's')
             
-            if Data['time'].values[-1]>np.datetime64(sdate+'T00:00:00') and Data['time'].values[0]<np.datetime64(edate+'T00:00:00'):
-                rad_qc=Data['mean_rad'].where(np.abs(Data.sceneMirrorAngle)<0.1).where(Data.hatchOpen==1)
-                rad_sel=rad_qc.sel(wnum=slice(wnum_min,wnum_max))
-                if rad[channel] is None:
-                    rad[channel]=rad_sel
-                else:
-                    rad[channel]=xr.concat([rad[channel],rad_sel], dim='time')
-                    
-                print(os.path.basename(f))
+            #QC and selection
+            rad_qc=Data['mean_rad'].where(np.abs(Data.sceneMirrorAngle)<0.1).where(Data.hatchOpen==1)
+            rad_sel=rad_qc.sel(wnum=slice(wnum_min,wnum_max))
             
-    if len(files)>0:
+            #stacking
+            if rad[channel] is None:
+                rad[channel]=rad_sel
+            else:
+                rad[channel]=xr.concat([rad[channel],rad_sel], dim='time')
+                
+            print(os.path.basename(f))
+            
+    if len(files_sel)>0:
         #match times
         time1=rad[channels[0]].time.values
         time2=rad[channels[1]].time.values
@@ -113,4 +133,5 @@ for month in np.arange(1,13):
         Output['time_diff']=xr.DataArray(data=(time2_synch-time1_synch),coords={'time':time_synch})
         
         Output.to_netcdf(os.path.join(cd,'data',
-                                      str(np.min(time_synch))[:10].replace('-','')+'.'+str(np.max(time_synch))[:10].replace('-','')+'.irs.nc'))
+                                      str(np.min(time_synch))[:10].replace('-','')+\
+                                  '.'+str(np.max(time_synch))[:10].replace('-','')+'.irs.nc'))
