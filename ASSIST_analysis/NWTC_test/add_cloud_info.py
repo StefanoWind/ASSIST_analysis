@@ -23,7 +23,7 @@ source_cbh=os.path.join(cd,'data','*.cbh.nc')
 cloud_window=np.timedelta64(3600,'s')#cloud search window
 wnum_cbh=900#[cm^-1] wnum sensitive to clouds
 time_res= np.timedelta64(60,'s')#time resolution when uniformily sampling the cbh
-min_da=0.5#minimmum data availability in a window
+min_da=0.5#minimum data availability in a window
 
 #graphics
 N_days_plot=7#number of days to plot in one figure
@@ -43,7 +43,7 @@ Data_cbh=Data_cbh.isel(time=time_cbh_uni)
 #%% Main
 
 #time operations
-time_int=np.arange(Data_irs.time.values[0],Data_irs.time.values[-1],time_res)
+time_int=np.arange(Data_irs.time.values[0],Data_irs.time.values[-1]+time_res,time_res)
 window=int(cloud_window/time_res)
 
 #build cloud flag
@@ -70,11 +70,12 @@ for t1,t2 in zip(time_bins[:-1],time_bins[1:]):
     Data_irs_sel=Data_irs.sel(time=slice(t1,t2))
     Data_cbh_sel=Data_cbh.sel(time=slice(t1,t2))
     fig=plt.figure(figsize=(18,8))
-    gs = gridspec.GridSpec(3, 1, height_ratios=[1,10,5])
+    gs = gridspec.GridSpec(3, 1, height_ratios=[0.5,10,5])
     ax=fig.add_subplot(gs[0,0])
-    plt.plot(Data_irs_sel.time,Data_irs_sel.cloud_flag.where(Data_irs_sel.cloud_flag==1),'.k',markersize=2)
+    for i in range(5):
+        plt.plot(Data_irs_sel.time,Data_irs_sel.cloud_flag.where(Data_irs_sel.cloud_flag==1)+i,'.k',markersize=2)
     plt.yticks([])
-    plt.xlim([-0.1,0.1])
+    plt.xlim([-0.1,1.1])
     plt.grid()
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%y-%m-%d'))
     plt.xlim([t1,t2])

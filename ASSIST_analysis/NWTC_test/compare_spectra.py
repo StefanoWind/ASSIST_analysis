@@ -17,7 +17,7 @@ matplotlib.rcParams['font.size'] = 12
 
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
-source=os.path.join(cd,'data','20220515.20220801.irs.cbh.nc')
+source=os.path.join(cd,'data','20220510.20220523.irs_with_cbh.nc')
 
 T_amb=20#[C]
 
@@ -26,6 +26,7 @@ h=6.62607015*10**-34#[J s] Plank's constant
 c=299792458.0#[m/s] speed of light
 
 max_err=0.01#fraction of ambient BB
+perc_lim=[1,99]
 
 tropoe_bands= np.array([[612.0,618.0],
                         [624.0,660.0],
@@ -51,11 +52,24 @@ Data=xr.open_dataset(source)
 
 #%% Main
 rad_diff=Data.rad.sel(channel='awaken/nwtc.assist.z03.00')-Data.rad.sel(channel='awaken/nwtc.assist.z02.00')
-bias=rad_diff.where(Data.cloud_flag==0).mean(dim='time')
-estd=rad_diff.where(Data.cloud_flag==0).std(dim='time')
+bias=xr.apply_ufunc(utl.filt_stat,rad_diff.where(Data.cloud_flag==0),
+                    kwargs={"func": np.nanmean,'perc_lim': perc_lim},
+                    input_core_dims=[["time"]],  # Operate along the 'space' dimension
+                    vectorize=True)
 
-bias_c=rad_diff.where(Data.cloud_flag==1).mean(dim='time')
-estd_c=rad_diff.where(Data.cloud_flag==1).std(dim='time')
+estd=xr.apply_ufunc(utl.filt_stat,rad_diff.where(Data.cloud_flag==0),
+                    kwargs={"func": np.nanstd,'perc_lim': perc_lim},
+                    input_core_dims=[["time"]],  # Operate along the 'space' dimension
+                    vectorize=True)
+
+bias_c=xr.apply_ufunc(utl.filt_stat,rad_diff.where(Data.cloud_flag==1),
+                    kwargs={"func": np.nanmean,'perc_lim': perc_lim},
+                    input_core_dims=[["time"]],  # Operate along the 'space' dimension
+                    vectorize=True)
+estd_c=xr.apply_ufunc(utl.filt_stat,rad_diff.where(Data.cloud_flag==1),
+                    kwargs={"func": np.nanstd,'perc_lim': perc_lim},
+                    input_core_dims=[["time"]],  # Operate along the 'space' dimension
+                    vectorize=True)
 
 B=2*h*c**2*Data.wnum**3/(np.exp(h*c*Data.wnum*100/(k*(273.15+T_amb)))-1)*10**11
 
