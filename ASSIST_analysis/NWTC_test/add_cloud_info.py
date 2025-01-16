@@ -22,6 +22,8 @@ source_irs=os.path.join(cd,'data','*.irs.nc')
 source_cbh=os.path.join(cd,'data','*.cbh.nc')
 cloud_window=np.timedelta64(3600,'s')#cloud search window
 wnum_cbh=900#[cm^-1] wnum sensitive to clouds
+time_res= np.timedelta64(60,'s')#time resolution when uniformily sampling the cbh
+min_da=0.5#minimmum data availability in a window
 
 #graphics
 N_days_plot=7#number of days to plot in one figure
@@ -40,20 +42,20 @@ Data_cbh=Data_cbh.isel(time=time_cbh_uni)
 
 #%% Main
 
+#time operations
+time_int=np.arange(Data_irs.time.values[0],Data_irs.time.values[-1],time_res)
+window=int(cloud_window/time_res)
+
 #build cloud flag
-Data_irs['cbh']=Data_cbh['cbh'].interp(time=Data_irs.time)
-cloud_flag=np.zeros(len(Data_irs.time))
-rad_std=np.zeros((len(Data_irs.time),len(Data_irs.channel)))
+cbh_int=Data_cbh['cbh'].interp(time=time_int).fillna(0)
+cbh_rol=cbh_int.rolling(time=window,min_periods=int(min_da*window),center=True).max()
+Data_irs['cloud_flag']=cbh_rol.interp(time=Data_irs.time)>0
+
+#radiance std at selected wnum
 rad_sel=Data_irs.rad.sel(wnum=wnum_cbh,method='nearest')
-for it in range(len(Data_irs.time)):
-    t=Data_irs.time.values[it]
-    if Data_irs.cbh.sel(time=slice(t-cloud_window/2,t+cloud_window/2)).max()>0:
-        cloud_flag[it]=1
-    rad_std[it,:]=rad_sel.sel(time=slice(t-cloud_window/2,t+cloud_window/2)).std(dim='time')
-    print(it/len(Data_irs.time))
-    
-Data_irs['cloud_flag']=xr.DataArray(data=cloud_flag,coords={'time':Data_irs.time})
-Data_irs['rad_std']=xr.DataArray(data=rad_std,coords={'time':Data_irs.time,'channel':Data_irs.channel})
+rad_int=rad_sel.interp(time=time_int).mean(dim='channel')
+rad_std=rad_int.rolling(time=window,min_periods=int(min_da*window),center=True).std()
+Data_irs['rad_std_'+str(wnum_cbh)]=rad_std.interp(time=Data_irs.time)
 
 #%% Output
 Data_irs.to_netcdf(os.path.join(cd,'data',
@@ -80,22 +82,20 @@ for t1,t2 in zip(time_bins[:-1],time_bins[1:]):
     
     ax=fig.add_subplot(gs[1,0])
     plt.plot(Data_cbh_sel.time,Data_cbh_sel.cbh,'.k',alpha=0.5,label='Original',markersize=3)
-    plt.plot(Data_irs_sel.time,Data_irs_sel.cbh,'.g',alpha=0.5,label='Interpolated',markersize=2)
     plt.ylabel('First CBH [m]')
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%y-%m-%d'))
     plt.xlim([t1,t2])
+    plt.ylim([0,cbh_int.max()])
     plt.grid()
-    plt.legend()
     
     ax=fig.add_subplot(gs[2,0])
-    for channel in Data_irs_sel.channel:
-        plt.semilogy(Data_irs_sel.time,Data_irs_sel.rad_std.sel(channel=channel),'.',label=str(channel.values),markersize=2)
+    plt.semilogy(Data_irs_sel.time,Data_irs_sel['rad_std_'+str(wnum_cbh)],'.k',markersize=2)
     plt.ylabel(r'$\sigma (B)$ at $\tilde{\nu}='+str(wnum_cbh)+ '$ cm $^{-1}$')
     plt.xlabel('Time (UTC)')
     plt.xlim([t1,t2])
+    plt.ylim([0,rad_std.max()])
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%y-%m-%d'))
     plt.grid()
-    plt.legend()
     
     plt.savefig(os.path.join(cd,'figures','cbh',str(t1)[:10]+'.'+str(t2)[:10]+'.png'))
     plt.close()
