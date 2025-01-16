@@ -6,3 +6,5 @@ __pycache__
 *.xlsx
 *.txt
 *.pptx
+*.sh
+*.yaml
