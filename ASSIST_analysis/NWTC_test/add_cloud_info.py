@@ -44,11 +44,12 @@ Data_cbh=Data_cbh.isel(time=time_cbh_uni)
 Data_irs['cbh']=Data_cbh['cbh'].interp(time=Data_irs.time)
 cloud_flag=np.zeros(len(Data_irs.time))
 rad_std=np.zeros((len(Data_irs.time),len(Data_irs.channel)))
+rad_sel=Data_irs.rad.sel(wnum=wnum_cbh,method='nearest')
 for it in range(len(Data_irs.time)):
     t=Data_irs.time.values[it]
     if Data_irs.cbh.sel(time=slice(t-cloud_window/2,t+cloud_window/2)).max()>0:
         cloud_flag[it]=1
-    rad_std[it,:]=Data_irs.rad.sel(wnum=wnum_cbh,method='nearest').sel(time=slice(t-cloud_window/2,t+cloud_window/2)).std(dim='time')
+    rad_std[it,:]=rad_sel.sel(time=slice(t-cloud_window/2,t+cloud_window/2)).std(dim='time')
     print(it/len(Data_irs.time))
     
 Data_irs['cloud_flag']=xr.DataArray(data=cloud_flag,coords={'time':Data_irs.time})
