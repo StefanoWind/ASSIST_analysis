@@ -146,7 +146,7 @@ for t1,t2 in zip(time_bins[:-1],time_bins[1:]):
         Output['rad']=xr.DataArray(data=rad_all,coords={'time':time_synch,'wnum':wnum_synch,'channel':channels})
         Output['time_diff']=xr.DataArray(data=(time2_synch-time1_synch),coords={'time':time_synch})
         
-        Output.to_netcdf(os.path.join(cd,'data',
+        Output.sortby('time').to_netcdf(os.path.join(cd,'data',
                                       str(np.min(time_synch))[:10].replace('-','')+\
                                   '.'+str(np.max(time_synch))[:10].replace('-','')+'.irs.nc'))
             
