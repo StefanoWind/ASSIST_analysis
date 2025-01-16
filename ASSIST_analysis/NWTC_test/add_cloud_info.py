@@ -25,14 +25,14 @@ wnum_cbh=900#[cm^-1] wnum sensitive to clouds
 N_days_plot=7#number of days to plot in one figure
 
 #%% Initialization
-files_irs=glob.glob(source_irs)
+files_irs=np.array(sorted(glob.glob(source_irs)))
 Data_irs=xr.open_mfdataset(files_irs)
-files_cbh=glob.glob(source_cbh)
+files_cbh=np.array(sorted(glob.glob(source_cbh)))
 Data_cbh=xr.open_mfdataset(files_cbh)
 
 #drop duplicates
-Data_irs.sel(time=~Data_irs["time"].duplicated())
-Data_cbh.sel(time=~Data_cbh["time"].duplicated())
+Data_irs.sel(time=np.unique(Data_irs.time))
+Data_cbh.sel(time=np.unique(Data_cbh.time))
 
 #%% Main
 
