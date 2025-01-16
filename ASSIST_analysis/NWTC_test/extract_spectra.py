@@ -110,11 +110,25 @@ for t1,t2 in zip(time_bins[:-1],time_bins[1:]):
         #match times
         time1=rad[channels[0]].time.values
         time2=rad[channels[1]].time.values
-        time_diff = abs(time1[:, None] - time2[None, :])
-        i_synch=np.argmin(time_diff,axis=1)
-        min_time_diff=np.min(time_diff,axis=1)
+        
+        # #matrix time matching
+        # time_diff0 = abs(time1[:, None] - time2[None, :])
+        # i_synch0=np.argmin(time_diff0,axis=1)
+        # min_time_diff0=np.min(time_diff0,axis=1)
+        
+        #vector time matching
+        i=0
+        i_synch=np.empty(len(time1), dtype=int)
+        min_time_diff=np.empty(len(time1), dtype='timedelta64[ns]')
+        for t1 in time1:
+            time_diff = abs(t1 - time2)
+            i_synch[i]=np.argmin(time_diff)
+            min_time_diff[i]=time_diff[i_synch[i]]
+            i+=1
+        
         synch1=min_time_diff<=max_time_diff
         synch2=i_synch[synch1]
+        
         time1_synch=time1[synch1]
         time2_synch=time2[synch2]
         
@@ -135,3 +149,4 @@ for t1,t2 in zip(time_bins[:-1],time_bins[1:]):
         Output.to_netcdf(os.path.join(cd,'data',
                                       str(np.min(time_synch))[:10].replace('-','')+\
                                   '.'+str(np.max(time_synch))[:10].replace('-','')+'.irs.nc'))
+            
