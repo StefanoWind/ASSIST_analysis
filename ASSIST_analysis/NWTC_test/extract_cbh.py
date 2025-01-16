@@ -65,4 +65,4 @@ for f in files:
 #%% Output
 Output=xr.Dataset()
 Output['cbh']=cbh
-Output.to_netcdf(os.path.join(cd,'data',sdate.replace('-','')+'.'+edate.replace('-','')+'.cbh.nc'))
+Output.sortby('time').to_netcdf(os.path.join(cd,'data',sdate.replace('-','')+'.'+edate.replace('-','')+'.cbh.nc'))
