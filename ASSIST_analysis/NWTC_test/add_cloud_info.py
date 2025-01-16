@@ -11,6 +11,8 @@ import glob
 import matplotlib
 import matplotlib.dates as mdates
 from matplotlib import pyplot as plt
+import warnings
+warnings.filterwarnings('ignore')
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 12
@@ -31,8 +33,10 @@ files_cbh=np.array(sorted(glob.glob(source_cbh)))
 Data_cbh=xr.open_mfdataset(files_cbh)
 
 #drop duplicates
-Data_irs.sel(time=np.unique(Data_irs.time))
-Data_cbh.sel(time=np.unique(Data_cbh.time))
+_,time_irs_uni=np.unique(Data_irs.time,return_index =True)
+Data_irs=Data_irs.isel(time=time_irs_uni)
+_,time_cbh_uni=np.unique(Data_cbh.time,return_index =True)
+Data_cbh=Data_cbh.isel(time=time_cbh_uni)
 
 #%% Main
 
