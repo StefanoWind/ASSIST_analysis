@@ -63,49 +63,54 @@ if download:
         a2e.download_with_order(_filter, path=os.path.join(cd,'data',channel),replace=False)
         
 #extract radiance
-rad={}
-for channel in channels:
-    rad[channel]=None
-    files=sorted(glob.glob(os.path.join(cd,'data',channel,'*cdf')))
-    
-    for f in files:
-        Data=xr.open_dataset(f).sortby('time')
-        Data['time']=np.datetime64('1970-01-01T00:00:00')+Data.base_time*np.timedelta64(1, 'ms')+Data.time*np.timedelta64(1, 's')
+for month in np.arange(1,13):
+    rad={}
+    for channel in channels:
+        rad[channel]=None
+        files=sorted(glob.glob(os.path.join(cd,'data',channel,f'*{sdate[:4]}{month:02d}*cdf')))
+        if len(files)==0:
+            files=sorted(glob.glob(os.path.join(cd,'data',channel,f'*{edate[:4]}{month:02d}*cdf')))
+        if len(files)==0:
+            break
+        for f in files:
+            Data=xr.open_dataset(f).sortby('time')
+            Data['time']=np.datetime64('1970-01-01T00:00:00')+Data.base_time*np.timedelta64(1, 'ms')+Data.time*np.timedelta64(1, 's')
+            
+            if Data['time'].values[-1]>np.datetime64(sdate+'T00:00:00') and Data['time'].values[0]<np.datetime64(edate+'T00:00:00'):
+                rad_qc=Data['mean_rad'].where(np.abs(Data.sceneMirrorAngle)<0.1).where(Data.hatchOpen==1)
+                rad_sel=rad_qc.sel(wnum=slice(wnum_min,wnum_max))
+                if rad[channel] is None:
+                    rad[channel]=rad_sel
+                else:
+                    rad[channel]=xr.concat([rad[channel],rad_sel], dim='time')
+                    
+                print(os.path.basename(f))
+            
+    if len(files)>0:
+        #match times
+        time1=rad[channels[0]].time.values
+        time2=rad[channels[1]].time.values
+        time_diff = abs(time1[:, None] - time2[None, :])
+        i_synch=np.argmin(time_diff,axis=1)
+        min_time_diff=np.min(time_diff,axis=1)
+        synch1=min_time_diff<=max_time_diff
+        synch2=i_synch[synch1]
+        time1_synch=time1[synch1]
+        time2_synch=time2[synch2]
         
-        if Data['time'].values[-1]>np.datetime64(sdate+'T00:00:00') and Data['time'].values[0]<np.datetime64(edate+'T00:00:00'):
-            rad_qc=Data['mean_rad'].where(np.abs(Data.sceneMirrorAngle)<0.1).where(Data.hatchOpen==1)
-            rad_sel=rad_qc.sel(wnum=slice(wnum_min,wnum_max))
-            if rad[channel] is None:
-                rad[channel]=rad_sel
-            else:
-                rad[channel]=xr.concat([rad[channel],rad_sel], dim='time')
-                
-            print(os.path.basename(f))
+        #build common structure
+        time_synch=time1_synch+(time2_synch-time1_synch)/2
+        wnum_synch=rad[channels[0]].wnum.values
         
+        rad_all=np.zeros((len(time_synch),len(wnum_synch),2))
+        rad_all[:,:,0]=rad[channels[0]].values[synch1,:]
+        rad_all[:,:,1]=rad[channels[1]].values[synch2,:]
         
-#match times
-time1=rad[channels[0]].time.values
-time2=rad[channels[1]].time.values
-time_diff = abs(time1[:, None] - time2[None, :])
-i_synch=np.argmin(time_diff,axis=1)
-min_time_diff=np.min(time_diff,axis=1)
-synch1=min_time_diff<=max_time_diff
-synch2=i_synch[synch1]
-time1_synch=time1[synch1]
-time2_synch=time2[synch2]
-
-#build common structure
-time_synch=time1_synch+(time2_synch-time1_synch)/2
-wnum_synch=rad[channels[0]].wnum.values
-
-rad_all=np.zeros((len(time_synch),len(wnum_synch),2))
-rad_all[:,:,0]=rad[channels[0]].values[synch1,:]
-rad_all[:,:,1]=rad[channels[1]].values[synch2,:]
-
-#%% Output
-Output=xr.Dataset()
-
-Output['rad']=xr.DataArray(data=rad_all,coords={'time':time_synch,'wnum':wnum_synch,'channel':channels})
-Output['time_diff']=xr.DataArray(data=(time2_synch-time1_synch),coords={'time':time_synch})
-
-Output.to_netcdf(os.path.join(cd,'data',sdate.replace('-','')+'.'+edate.replace('-','')+'.irs.nc'))
+        #Output
+        Output=xr.Dataset()
+        
+        Output['rad']=xr.DataArray(data=rad_all,coords={'time':time_synch,'wnum':wnum_synch,'channel':channels})
+        Output['time_diff']=xr.DataArray(data=(time2_synch-time1_synch),coords={'time':time_synch})
+        
+        Output.to_netcdf(os.path.join(cd,'data',
+                                      str(np.min(time_synch))[:10].replace('-','')+'.'+str(np.max(time_synch))[:10].replace('-','')+'.irs.nc'))

@@ -46,7 +46,7 @@ if download:
     
 #extract cbh
 cbh=None
-files=glob.glob(os.path.join(cd,'data',channel,'*nc'))
+files=sorted(glob.glob(os.path.join(cd,'data',channel,'*nc')))
 for f in files:
     Data=xr.open_dataset(f).sortby('time')
     Data['time']=np.datetime64('1970-01-01T00:00:00')+Data.time*np.timedelta64(1, 's')
