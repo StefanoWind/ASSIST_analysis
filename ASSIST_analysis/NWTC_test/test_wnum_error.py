@@ -11,37 +11,27 @@ import numpy as np
 import utils as utl
 from matplotlib import pyplot as plt
 import xarray as xr
-import warnings
 import matplotlib
-import matplotlib.patches as patches
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from scipy import integrate
 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 18
+matplotlib.rcParams['font.size'] = 14
 
 #%% Inputs
 source=os.path.join(cd,'data','20220510.20220824.irs_with_cbh.nc')
-hour_sel=15#select hour
-T_amb=273.15+32#[C] ambient temperature to fill gap in spectrum
+T_amb=273.15+25#[C] ambient temperature to fill gap in spectrum
 
 k=1.380649*10**-23#[J/Kg] Boltzman's constant
 h=6.62607015*10**-34#[J s] Plank's constant
 c=299792458#[m/s] speed of light
 
-clip=1
-skip=10
+clip=0.5
+skip=100
 
 gamma1=1
-gamma2=1+3.64*10**-5
+gamma2=1+4*10**-5
 perc_lim=[1,99]
 
-wnum_laser=15798.02#[cm^-1]
-N_real=32768#number of real samples
-
-#graphics
-zoom=[1000,1200,0,100]
 
 #%% Functions
 def phase(c):
@@ -93,16 +83,13 @@ hn=np.zeros(len(x))+1
 hn[np.abs(x)>=x[-1]*clip-10**-10]=0
 
 #convoluted spectra
+B_ds_opd=np.matmul(DFM,I_ds*hn)
+
 B_clip=[]
 for gamma in [gamma1,gamma2]:
     
     #distorted grid
-    dx_r=1/dwnum/N/gamma
-    x_r=n*dx_r
-    I_ds_r=np.interp(x_r,x,I_ds)
-    
-    #FT
-    B_ds_clip=np.matmul(DFM,I_ds_r*hn)
+    B_ds_clip=np.interp(wnum_ds*gamma,wnum_ds,B_ds_opd)
     
     #demirroring
     B_clip=utl.vstack(B_clip,(B_ds_clip+B_ds_clip[::-1])[wnum_ds>=wnum[0]])
@@ -110,22 +97,26 @@ for gamma in [gamma1,gamma2]:
 dB_dwnum=np.gradient(B,wnum)
 dB1_dwnum=np.gradient(B_clip[0,:],wnum)
 dB2_dwnum=np.gradient(B_clip[1,:],wnum)
-print(np.nanmean(np.abs(B_clip[1,:]-B_clip[0,:])))
 
-dB_dwnum_sm=xr.DataArray(data=np.abs(dB_dwnum),coords={'wnum':wnum}).rolling(wnum=100,center=True,min_periods=10).mean().values
-bias_sm=np.abs(bias).rolling(wnum=100,center=True,min_periods=10).mean().values
-
-bias2_sm=xr.DataArray(data=np.abs(B_clip[1,:]-B_clip[0,:]),coords={'wnum':wnum}).rolling(wnum=100,center=True,min_periods=10).mean().values
+bias=dB2_dwnum*(gamma2-gamma1)*wnum
 
 #%% Plots
-plt.figure()
-plt.plot(wnum,B,'k',alpha=0.25)
-plt.plot(wnum,B_clip[0,:],'k')
-plt.plot(wnum,B_clip[1,:],'r')
-plt.plot(wnum,B_clip[1,:]-B_clip[0,:],'b')
-plt.plot(wnum,bias,'g')
+plt.close('all')
+plt.figure(figsize=(18,8))
+ax=plt.subplot(2,1,1)
+plt.plot(wnum,B,'k',alpha=0.25,label='Original')
+plt.plot(wnum,B_clip[0,:],'k',label=r'$B_1$')
+plt.plot(wnum,B_clip[1,:],'r',label=r'$B_2$')
+plt.grid()
+plt.ylabel(r'$B$ [r.u.]')
+
+ax=plt.subplot(2,1,2)
+plt.plot(wnum,B_clip[1,:]-B_clip[0,:],'b',label='Data')
+plt.plot(wnum,bias,'g',label='Model')
+plt.grid()
+plt.xlabel(r'$\tilde{\nu}$ [cm$^{-1}$]')
+plt.ylabel(r'$B_1-B_2$ [r.u.]')
+
 
 plt.figure()
-utl.plot_lin_fit((gamma2-gamma1)*wnum*dB_dwnum_sm,bias2_sm)
-# plt.plot((gamma2-gamma1)*wnum*dB1_dwnum,B_clip[1,:]-B_clip[0,:],'.k')
-# plt.plot((gamma2-gamma1)*wnum*dB2_dwnum,B_clip[1,:]-B_clip[0,:],'.r')
+utl.plot_lin_fit(B_clip[1,:]-B_clip[0,:], bias)
