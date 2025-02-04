@@ -5,7 +5,6 @@ Add error due to noise and smoothing to TROPoe retreival
 import os
 cd=os.path.dirname(__file__)
 import numpy as np
-import sys
 import xarray as xr
 import matplotlib
 import matplotlib.gridspec as gridspec
@@ -22,18 +21,16 @@ matplotlib.rcParams['font.size'] = 16
 
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
-max_z=3000
 source='data/awaken/nwtc.assist.tropoe.z02.c0/*nc'
+
+#graphics
+max_z=3000#[m] maximum height ot plot
 
 #%% Initialization
 #config
 with open(source_config, 'r') as fid:
     config = yaml.safe_load(fid)
     
-#imports
-sys.path.append(config['path_utils'])
-import utils as utl
-
 files=glob.glob(os.path.join(cd,source))
 
 #%% Main
@@ -41,21 +38,22 @@ for f in files:
     
     Data=xr.open_dataset(f)
     
-    #smoothing error
+    #caclulate smoothing error
     I=np.eye(len(Data.arb_dim1))
     Ss=np.zeros_like(Data.Sop)
     Sa=Data.Sa.values
-    
     for it in range(len(Data.time)):
         A=Data['Akernal'].isel(time=it).values.T
         Ss[it,:,:]=(A-I)@Sa@(A-I).T
-        
+   
+    #save covariances
     Data['Ss']=xr.DataArray(data=Ss,coords={'time':Data.time,'arb_dim1':Data.arb_dim1,'arb_dim2':Data.arb_dim2})
     Data['Sn']=Data.Sop-Data.Ss
     
+    #extract diagonal terms
     Nz=len(Data.height)
-    Data['sigma_temperature_s']=xr.DataArray(data=            Ss[:,np.arange(Nz),np.arange(Nz)]**0.5,coords={'time':Data.time,'height':Data.height})
-    Data['sigma_temperature_n']=xr.DataArray(data=Data.Sn.values[:,np.arange(Nz),np.arange(Nz)]**0.5,coords={'time':Data.time,'height':Data.height})
+    Data['sigma_temperature_s']=xr.DataArray(data=            Ss[:,np.arange(Nz),np.arange(Nz)]**0.5,         coords={'time':Data.time,'height':Data.height})
+    Data['sigma_temperature_n']=xr.DataArray(data=Data.Sn.values[:,np.arange(Nz),np.arange(Nz)]**0.5,         coords={'time':Data.time,'height':Data.height})
     
     Data['sigma_waterVapor_s']=xr.DataArray(data=            Ss[:,np.arange(Nz,2*Nz),np.arange(Nz,2*Nz)]**0.5,coords={'time':Data.time,'height':Data.height})
     Data['sigma_waterVapor_n']=xr.DataArray(data=Data.Sn.values[:,np.arange(Nz,2*Nz),np.arange(Nz,2*Nz)]**0.5,coords={'time':Data.time,'height':Data.height})
@@ -137,7 +135,6 @@ for f in files:
     ax=fig.add_subplot(gs[0,3])
     cb = fig.colorbar(CS, cax=ax, orientation='vertical')
     cb.set_label(r'$\sigma(T)$  [$^\circ$C]')
-    
      
     ax=fig.add_subplot(gs[1,0])
     CS=plt.contourf(time,height,sigma_waterVapor.T,np.arange(0,1.1,0.1),cmap='RdYlGn_r',extend='both')
@@ -184,3 +181,6 @@ for f in files:
     cb = fig.colorbar(CS, cax=ax, orientation='vertical')
     cb.set_label(r'$\sigma(r)$ [g/kg]')
     plt.savefig(f.replace('c0','c1').replace('.nc','.unc.png'))
+    
+    Data.close()
+    plt.close('all')
