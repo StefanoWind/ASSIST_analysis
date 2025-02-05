@@ -38,7 +38,7 @@ for f in files:
     
     Data=xr.open_dataset(f)
     
-    #caclulate smoothing error
+    #calculate smoothing error
     I=np.eye(len(Data.arb_dim1))
     Ss=np.zeros_like(Data.Sop)
     Sa=Data.Sa.values
