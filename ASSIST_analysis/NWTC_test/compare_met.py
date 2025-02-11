@@ -22,7 +22,7 @@ matplotlib.rcParams['font.size'] = 16
 source_config=os.path.join(cd,'configs','config.yaml')
 
 unit='ASSIST10'
-sources={'ASSIST10':'data/awaken/nwtc.assist.tropoe.z01.c0/*nc',
+sources={'ASSIST10':'data/awaken/nwtc.assist.tropoe.z01.c2/*nc',
          'ASSIST11':'data/awaken/nwtc.assist.tropoe.z02.c0/*nc',
          'ASSIST12':'data/awaken/nwtc.assist.tropoe.z03.c0/*nc'}
 source_met='data/nwtc.m5.a0/*nc'
@@ -49,7 +49,7 @@ with open(source_config, 'r') as fid:
 sys.path.append(config['path_utils'])
 import utils as utl
 
-name_save=os.path.join(cd,f'data/{unit}_met_1m.nc')
+name_save=os.path.join(cd,f'data/{unit}_met_1m_bias.nc')
 
 #%% Main
 
@@ -82,11 +82,11 @@ if not os.path.isfile(name_save):
     Data_trp=Data_trp.assign_coords(height=Data_trp.height*1000+height_assist)
     Data_trp=Data_trp.interp(height=Data_met.height)
     
-    
     Data=xr.Dataset()
     Data['met_temperature']=Data_met['temperature']
     Data['met_temperature_rec']=Data_met['temperature_rec']
     Data['trp_temperature']=Data_trp['temperature']
+    Data['trp_temperature_bias']=Data_trp['bias']
     Data['trp_sigma_temperature']=Data_trp['sigma_temperature']
     
     Data.to_netcdf(name_save)
@@ -126,6 +126,7 @@ fig=plt.figure(figsize=(18,10))
 for i_h in range(len(height)):
     ax=plt.subplot(len(height),1,i_h+1)
     plt.plot(time,Data['DT'].isel(height=i_h),'-k',markersize=3)
+    plt.plot(time,Data['trp_temperature_bias'].isel(height=i_h),'r')
     plt.ylim([-3,3])
     plt.grid()
 

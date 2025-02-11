@@ -67,8 +67,8 @@ hour=(tnum-np.floor(tnum/(3600*24))*3600*24)/3600
 
 syear=int(str(Data_met.time.values[0])[:4])
 smonth=int(str(Data_met.time.values[0])[5:7])
-eyear=int(str(Data_met.time.values[0])[:4])
-emonth=int(str(Data_met.time.values[0])[5:7])
+eyear=int(str(Data_met.time.values[-1])[:4])
+emonth=int(str(Data_met.time.values[-1])[5:7])
 assert eyear==syear, "Dataset spans more than on year"
 bins_month=np.array([],dtype='datetime64')
 for m in np.arange(smonth,emonth+2):
@@ -93,7 +93,7 @@ Data_met_dav=xr.Dataset()
 Data_met_dav[var]=xr.DataArray(T_dav,coords={'month':month,'hour':hour,'height':height})
 
 #%% Output
-Data_met_dav.to_netcdf(os.path.join(cd,'data','met_prior.nc'))
+Data_met_dav.to_netcdf(os.path.join(cd,'data','met_prior2.nc'))
 
 #%% Plots
 for m in month:
