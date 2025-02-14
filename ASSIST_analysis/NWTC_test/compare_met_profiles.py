@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Compare tropoe retrievals to met tower data
+Compare tropoe retrievals to met tower data by making video of profiles
 """
 import os
 cd=os.path.dirname(__file__)
@@ -8,15 +8,12 @@ import numpy as np
 import sys
 import xarray as xr
 import matplotlib
-import matplotlib.gridspec as gridspec
 from matplotlib import pyplot as plt
 import yaml
-import statsmodels.api as sm
-from scipy.stats import norm
 import glob
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 16
+matplotlib.rcParams['font.size'] = 12
 
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
@@ -28,7 +25,7 @@ sources={'ASSIST10':'data/awaken/nwtc.assist.tropoe.z01.c0',
 source_met='data/nwtc.m5.a0'
 
 
-date='2022-04-27'
+date='2022-04-22'
 var='temperature_rec'
 max_height=200
 
@@ -70,9 +67,23 @@ Data_met=Data_met.interp(time=Data_trp.time)
 time=Data_trp.time.values
 for i in np.arange(len(time)):
     plt.figure()
-    plt.plot(Data_met[var].isel(time=i),Data_met.height,'.-k')
-    plt.plot(Data_trp['temperature'].isel(time=i),Data_trp.height*1000,'.-r')
-    plt.xlim([0,30])
+    plt.plot(Data_met[var].isel(time=i),Data_met.height,'.-k',label='Met')
+    plt.plot(Data_trp['temperature_qc'].isel(time=i),Data_trp.height*1000,'.-r',label='TROPoe')
+    plt.fill_betweenx(Data_trp.height*1000,
+                      Data_trp['temperature_qc'].isel(time=i)-Data_trp['sigma_temperature'].isel(time=i),
+                      Data_trp['temperature_qc'].isel(time=i)+Data_trp['sigma_temperature'].isel(time=i),
+                      color='r',alpha=0.25)
+    
+    plt.xlabel(r'$T$ [$^\circ$C]')
+    plt.ylabel('$z$ [m]')
+    plt.xlim([-5,35])
     plt.ylim([0,200])
-    plt.savefig(os.path.join(cd,'figures',date,f'{i:03}.png'))
+    plt.title(str(time[i]).replace('T',' ')[:-6])
+    if Data_trp['lwp'].isel(time=i).values>config['min_lwp']:
+        plt.text(0,175,f'CBH={int(Data_trp.cbh.isel(time=i).values*1000)} m')
+    plt.grid()
+    plt.tight_layout()
+    plt.savefig(os.path.join(cd,'figures',date,f'{i:03}.png'))  
     plt.close()
+    
+utl.make_video(os.path.join(cd,'figures',date),os.path.join(cd,'figures',date+'.profiles.mp4'),10)
