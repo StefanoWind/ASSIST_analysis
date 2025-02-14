@@ -18,16 +18,16 @@ matplotlib.rcParams['font.size'] = 12
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
 
+#dataset
 unit='ASSIST10'
 sources={'ASSIST10':'data/awaken/nwtc.assist.tropoe.z01.c0',
          'ASSIST11':'data/awaken/nwtc.assist.tropoe.z02.c0',
          'ASSIST12':'data/awaken/nwtc.assist.tropoe.z03.c0'}
 source_met='data/nwtc.m5.a0'
 
-
+#user
 date='2022-04-22'
-var='temperature_rec'
-max_height=200
+max_height=200#[m] maximum height
 
 #%% Initialization
 
@@ -67,7 +67,8 @@ Data_met=Data_met.interp(time=Data_trp.time)
 time=Data_trp.time.values
 for i in np.arange(len(time)):
     plt.figure()
-    plt.plot(Data_met[var].isel(time=i),Data_met.height,'.-k',label='Met')
+    plt.plot(Data_met['temperature_rec'].isel(time=i),Data_met.height,'.-k',label='Met (diff. based)')
+    plt.plot(Data_met['temperature'].isel(time=i),Data_met.height,'.-b',label='Met')
     plt.plot(Data_trp['temperature_qc'].isel(time=i),Data_trp.height*1000,'.-r',label='TROPoe')
     plt.fill_betweenx(Data_trp.height*1000,
                       Data_trp['temperature_qc'].isel(time=i)-Data_trp['sigma_temperature'].isel(time=i),
@@ -82,6 +83,7 @@ for i in np.arange(len(time)):
     if Data_trp['lwp'].isel(time=i).values>config['min_lwp']:
         plt.text(0,175,f'CBH={int(Data_trp.cbh.isel(time=i).values*1000)} m')
     plt.grid()
+    plt.legend()
     plt.tight_layout()
     plt.savefig(os.path.join(cd,'figures',date,f'{i:03}.png'))  
     plt.close()
