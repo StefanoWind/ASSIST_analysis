@@ -19,21 +19,28 @@ matplotlib.rcParams['font.size'] = 16
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
 
+#user
+unit='ASSIST10'#assist id
+met='M2'#met tower id
+
 #dataset
-unit='ASSIST10'
-sources={'ASSIST10':'data/awaken/nwtc.assist.tropoe.z01.c2/*nc',
-         'ASSIST11':'data/awaken/nwtc.assist.tropoe.z02.c0/*nc',
-         'ASSIST12':'data/awaken/nwtc.assist.tropoe.z03.c0/*nc'}
-source_met='data/nwtc.m5.a0/*nc'
+sources_trp={'ASSIST10':'data/awaken/nwtc.assist.tropoe.z01.c2/*nc',
+             'ASSIST11':'data/awaken/nwtc.assist.tropoe.z02.c0/*nc',
+             'ASSIST12':'data/awaken/nwtc.assist.tropoe.z03.c0/*nc'}
+
+sources_met={'M5':'data/nwtc.m5.a0/*nc',
+             'M2':'data/nwtc.m2.a0/*nc'}
+
 height_assist=1#[m] height of TROPoe's first point
 
 #user
-var='met_temperature_rec'#selected temperature variable in M5 data
+var='met_temperature'#selected temperature variable in M5 data
 
 #stats
 p_value=0.05#for CI
 max_height=0.2#[km]
 bins_hour=np.arange(25)#[h] hour bins
+max_mad=10#[K] maximum deviation form median over height
 
 #graphics
 cmap = plt.get_cmap("viridis")
@@ -47,14 +54,14 @@ with open(source_config, 'r') as fid:
 sys.path.append(config['path_utils'])
 import utils as utl
 
-name_save=os.path.join(cd,f'data/{unit}_met_bias.nc')
+name_save=os.path.join(cd,f'data/{unit}_{met}_comp.nc')
 
 #%% Main
 
 if not os.path.isfile(name_save):
 
     #load tropoe data
-    files=glob.glob(os.path.join(cd,sources[unit]))
+    files=glob.glob(os.path.join(cd,sources_trp[unit]))
     Data_trp=xr.open_mfdataset(files).sel(height=slice(0,max_height))
     
     #qc tropoe data
@@ -72,8 +79,12 @@ if not os.path.isfile(name_save):
     print(f'{np.round(np.sum(qc_cbh).values/qc_cbh.size*100,1)}% retained after cbh filter')
     
     #load met data
-    files=glob.glob(os.path.join(cd,source_met))
-    Data_met=xr.open_mfdataset(files).rename({"air_temp":"temperature"}).rename({"air_temp_rec":"temperature_rec"})
+    files=glob.glob(os.path.join(cd,sources_met[met]))
+    
+    Data_met=xr.open_mfdataset(files)
+    
+    if "air_temp_rec" in Data_met.data_vars:
+        Data_met=Data_met.rename({"air_temp":"temperature"}).rename({"air_temp_rec":"temperature_rec"})
 
     #interpolation
     Data_met=Data_met.interp(time=Data_trp.time)
@@ -83,15 +94,27 @@ if not os.path.isfile(name_save):
     #save output (to save time at next run)
     Data=xr.Dataset()
     Data['met_temperature']=Data_met['temperature']
-    Data['met_temperature_rec']=Data_met['temperature_rec']
     Data['trp_temperature']=Data_trp['temperature']
-    Data['trp_temperature_bias']=Data_trp['bias']
     Data['trp_sigma_temperature']=Data_trp['sigma_temperature']
     Data['cbh']=Data_trp['cbh']
     
+    if 'temperature_rec' in Data_met.data_vars:
+        Data['met_temperature_rec']=Data_met['temperature_rec']
+    
+    if 'bias' in Data_trp.data_vars:
+        Data['trp_temperature_bias']=Data_trp['bias']
+    else:
+        Data['trp_temperature_bias']=Data_trp['temperature']*0
+    
     Data.to_netcdf(name_save)
-else:
-    Data=xr.open_dataset(name_save)
+    Data.close()
+
+#load data
+Data=xr.open_dataset(name_save)
+
+#qc
+mad=np.abs(Data['met_temperature']-Data['met_temperature'].median(dim='height'))
+Data['met_temperature']=Data['met_temperature'].where(mad<max_mad)
 
 #extract coords
 height=Data.height.values
@@ -151,7 +174,7 @@ for i_h in range(len(height)):
     plt.plot(bins,norm.pdf(bins,loc=DT.mean(),scale=DT.std()),'k',label='Met')
     plt.grid()
     if i_h==len(height)-1:
-        plt.xlabel(r'$\Delta T$ (TROpoe-met) [$^\circ$C]')
+        plt.xlabel(r'$\Delta T$ (TROPoe-met) [$^\circ$C]')
     plt.ylim([0,3.5])
 plt.legend()
 
@@ -178,3 +201,16 @@ plt.xlabel('Hour (UTC)')
 plt.ylabel(r'St.dev. of $\Delta T$ (TROPoe-met) [$^\circ$C]')
 plt.legend()
 plt.grid()
+
+#linear regressions
+plt.figure(figsize=(18,4))
+for i_h in range(len(height)):
+    plt.subplot(1,len(height),i_h+1)
+    utl.plot_lin_fit(Data[var].isel(height=i_h).values,Data['trp_temperature'].isel(height=i_h).values)
+    plt.xlim([-5,30])
+    plt.ylim([-5,30])
+    plt.xlabel(r'$T$ (met) [$^\circ$C]')
+    if i_h==0:
+        plt.ylabel(r'$T$ (TROPoe) [$^\circ$C]')
+    plt.text(20,0,r'$z='+str(height[i_h])+r'$ m',bbox={'alpha':0.5,'color':'w'})
+    

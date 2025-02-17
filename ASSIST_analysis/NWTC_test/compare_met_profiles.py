@@ -26,7 +26,7 @@ sources={'ASSIST10':'data/awaken/nwtc.assist.tropoe.z01.c0',
 source_met='data/nwtc.m5.a0'
 
 #user
-date='2022-04-22'
+date='2022-04-23'
 max_height=200#[m] maximum height
 
 #%% Initialization
