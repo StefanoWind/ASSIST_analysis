@@ -20,8 +20,8 @@ matplotlib.rcParams['font.size'] = 16
 source_config=os.path.join(cd,'configs','config.yaml')
 
 #user
-unit='ASSIST10'#assist id
-met='M2'#met tower id
+unit='ASSIST11'#assist id
+met='M5'#met tower id
 
 #dataset
 sources_trp={'ASSIST10':'data/awaken/nwtc.assist.tropoe.z01.c2/*nc',
@@ -34,14 +34,15 @@ sources_met={'M5':'data/nwtc.m5.a0/*nc',
 height_assist=1#[m] height of TROPoe's first point
 
 #user
-var='met_temperature'#selected temperature variable in M5 data
+var='met_temperature_rec'#selected temperature variable in M5 data
 
 #stats
 p_value=0.05#for CI
 max_height=0.2#[km]
 bins_hour=np.arange(25)#[h] hour bins
 max_mad=10#[K] maximum deviation form median over height
-
+min_T=-10#[C] minimum temperature
+ 
 #graphics
 cmap = plt.get_cmap("viridis")
 
@@ -86,6 +87,16 @@ if not os.path.isfile(name_save):
     if "air_temp_rec" in Data_met.data_vars:
         Data_met=Data_met.rename({"air_temp":"temperature"}).rename({"air_temp_rec":"temperature_rec"})
 
+    #qc
+    Data_met['temperature']=Data_met['temperature'].where(Data_met['temperature']>min_T)
+    mad=np.abs(Data_met['temperature']-Data_met['temperature'].median(dim='height'))
+    Data_met['temperature']=Data_met['temperature'].where(mad<max_mad)
+    
+    if 'temperature_rec' in Data_met.data_vars:
+        Data_met['temperature_rec']=Data_met['temperature_rec'].where(Data_met['temperature_rec']>min_T)
+        mad=np.abs(Data_met['temperature_rec']-Data_met['temperature_rec'].median(dim='height'))
+        Data_met['temperature_rec']=Data_met['temperature_rec'].where(mad<max_mad)
+    
     #interpolation
     Data_met=Data_met.interp(time=Data_trp.time)
     Data_trp=Data_trp.assign_coords(height=Data_trp.height*1000+height_assist)
@@ -112,9 +123,6 @@ if not os.path.isfile(name_save):
 #load data
 Data=xr.open_dataset(name_save)
 
-#qc
-mad=np.abs(Data['met_temperature']-Data['met_temperature'].median(dim='height'))
-Data['met_temperature']=Data['met_temperature'].where(mad<max_mad)
 
 #extract coords
 height=Data.height.values
