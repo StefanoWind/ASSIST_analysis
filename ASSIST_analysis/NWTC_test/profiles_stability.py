@@ -15,7 +15,7 @@ from scipy.stats import norm
 import glob
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 16
+matplotlib.rcParams['font.size'] = 14
 
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
@@ -28,18 +28,31 @@ height_sonic=[15,41,61,74,100,119]#[m] sonic heights
 unit='ASSIST10'
 met='M5'
 
+var='temperature_rec'
+
 #dataset
 sources_trp={'ASSIST10':'data/awaken/nwtc.assist.tropoe.z01.c2/*nc',
-         'ASSIST11':'data/awaken/nwtc.assist.tropoe.z02.c0/*nc',
-         'ASSIST12':'data/awaken/nwtc.assist.tropoe.z03.c0/*nc'}
+             'ASSIST11':'data/awaken/nwtc.assist.tropoe.z02.c0/*nc',
+             'ASSIST12':'data/awaken/nwtc.assist.tropoe.z03.c0/*nc'}
 
 sources_met={'M5':'data/nwtc.m5.a0/*nc',
              'M2':'data/nwtc.m2.a0/*nc'}
 
+
 height_assist=1#[m] height of TROPoe's first point
 
 #stats
-max_height=0.2#[km]
+max_height=0.2#[km] max height in TROPoe
+max_L=2000
+stb_class={'U':[-500,0],
+           'S':[0,500],
+           'N1':[-max_L,-500],
+           'N2':[500,max_L]}
+stb_class_uni=['S','N','U']
+
+
+height_sel=74#[m]
+
 
 #%% Initialization
 #config
@@ -63,10 +76,8 @@ for i_h in range(len(height_sonic)):
 Data_stb=xr.Dataset()
 Data_stb['L']=xr.DataArray(data=L,coords={'time':time,'height':height_sonic})
 
-
 name_save_trp=os.path.join(cd,f'data/{unit}_all.nc')
-name_save_met=os.path.join(cd,f'data/{met}_all.nc')
-
+name_save_met=os.path.join(cd,f'data/{met}_int_{unit}_all.nc')
 
 if not os.path.isfile(name_save_trp):
 
@@ -88,6 +99,7 @@ if not os.path.isfile(name_save_trp):
     print(f'{np.round(np.sum(qc_rmsa).values/qc_rmsa.size*100,1)}% retained after rmsa filter')
     print(f'{np.round(np.sum(qc_cbh).values/qc_cbh.size*100,1)}% retained after cbh filter')
     
+    Data_trp=Data_trp['temperature']
     Data_trp=Data_trp.assign_coords(height=Data_trp.height*1000+height_assist)
     
     Data_trp.to_netcdf(name_save_trp)
@@ -114,18 +126,70 @@ if not os.path.isfile(name_save_met):
 #load data
 Data_met=xr.open_dataset(name_save_met)
 
+#qc
+Data_stb['L']=Data_stb.L.clip(min=-max_L, max=max_L)
+print(f'{np.round(np.sum(np.abs(Data_stb.L).values==max_L)/np.sum(~np.isnan(Data_stb.L.values))*100,1)}% excluded L values')
 
+#interpilation
 Data_stb=Data_stb.interp(time=Data_trp.time)
 
+Data_stb['class']=xr.DataArray(data=['']*len(Data_stb.time),coords={'time':Data_stb.time})
+L=Data_stb.L.sel(height=height_sel)
+for sc in stb_class:
+    Data_stb['class'].loc[(L>=stb_class[sc][0])*(L<=stb_class[sc][1])]=sc[0]
 
-T_met_avg1=Data_met['temperature_rec'].where(1/Data_stb['L'].isel(height=2)>1).mean(dim='time')
-T_met_avg2=Data_met['temperature_rec'].where(1/Data_stb['L'].isel(height=2)<-5).mean(dim='time')
+#stats
+T_trp_avg=np.zeros((len(Data_trp.height),len(stb_class_uni)))
+T_trp_low=np.zeros((len(Data_trp.height),len(stb_class_uni)))
+T_trp_top=np.zeros((len(Data_trp.height),len(stb_class_uni)))
+for i_sc in range(len(stb_class_uni)):
+    for i_h in range(len(Data_trp.height)):
+        T_trp_avg[i_h,i_sc]=utl.filt_stat(Data_trp.temperature.isel(height=i_h).where(Data_stb['class']==stb_class_uni[i_sc]).values,np.nanmean)
 
-T_trp_avg1=Data_trp['temperature'].where(1/Data_stb['L'].isel(height=2)>1).mean(dim='time')
-T_trp_avg2=Data_trp['temperature'].where(1/Data_stb['L'].isel(height=2)<-5).mean(dim='time')
+Data_trp['temperature_avg']=xr.DataArray(data=T_trp_avg,coords={'height':Data_trp.height,'_class':stb_class_uni})
+
+T_met_avg=np.zeros((len(Data_met.height),len(stb_class_uni)))
+T_met_low=np.zeros((len(Data_met.height),len(stb_class_uni)))
+T_met_top=np.zeros((len(Data_met.height),len(stb_class_uni)))
+for i_sc in range(len(stb_class_uni)):
+    for i_h in range(len(Data_met.height)):
+        T_met_avg[i_h,i_sc]=utl.filt_stat(Data_met[var].isel(height=i_h).where(Data_stb['class']==stb_class_uni[i_sc]).values,np.nanmean)
+
+Data_met['temperature_avg']=xr.DataArray(data=T_met_avg,coords={'height':Data_met.height,'_class':stb_class_uni})
+
+#%% Plots
+plt.close("all")
+#L histograms
+sel=~np.isnan(Data_stb.L.mean(dim='time'))
+hsel=Data_stb.height[sel].values
+plt.figure(figsize=(18,10))
+for i_h in range(len(hsel)):
+    ax=plt.subplot(len(hsel),1,i_h+1)
+    plt.hist(Data_stb.L.sel(height=hsel[i_h]),bins=np.linspace(-max_L,max_L,100),color='k')
+    plt.grid()
+    plt.ylabel('Occurrence')
+    if i_h==len(hsel)-1:
+        plt.xlabel(r'$L$ [m]')
+    else:
+        ax.set_xticklabels([])
+    plt.text(-max_L*0.9,100,r'$z='+str(hsel[i_h])+'$ m')
+plt.tight_layout()
+    
+#average profiles
+plt.figure(figsize=(18,7))
+ctr=1
+for sc in stb_class_uni:
+    plt.subplot(1,len(stb_class_uni),ctr)
+    plt.plot(Data_met.temperature_avg.sel(_class=sc),Data_met.height,'.-k')
+    plt.plot(Data_trp.temperature_avg.sel(_class=sc),Data_trp.height,'.-r')
+    ctr+=1
+
+
+dT_dz_met=Data_met[var].isel(height=1)-Data_met[var].isel(height=0)
+dT_dz_trp=Data_trp['temperature'].isel(height=1)-Data_trp['temperature'].isel(height=0)
+DT_avg=np.abs(Data_trp.temperature.interp(height=Data_met.height)-Data_met[var]).mean(dim='height')
 
 plt.figure()
-plt.plot(T_met_avg1,Data_met.height)
-plt.plot(T_met_avg2,Data_met.height)
-plt.plot(T_trp_avg1,Data_trp.height)
-plt.plot(T_trp_avg2,Data_trp.height)
+plt.scatter(L,dT_dz_met,s=DT_avg*10)
+plt.gca().set_xscale('symlog')
+plt.grid()
