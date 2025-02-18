@@ -20,12 +20,12 @@ matplotlib.rcParams['font.size'] = 14
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
 
-source_stb=os.path.join(cd,'data/nwtc.m5.b1/*csv')
+# source_stb=os.path.join(cd,'data/nwtc.m5.b1/*csv')
 time_offset=np.timedelta64(300, 's')
 height_sonic=[15,41,61,74,100,119]#[m] sonic heights
 
 #user
-unit='ASSIST10'
+unit='ASSIST11'
 met='M5'
 
 var='temperature_rec'
@@ -38,21 +38,27 @@ sources_trp={'ASSIST10':'data/awaken/nwtc.assist.tropoe.z01.c2/*nc',
 sources_met={'M5':'data/nwtc.m5.a0/*nc',
              'M2':'data/nwtc.m2.a0/*nc'}
 
+source_stb='data/nwtc.m2.a0/*nc'
+
+g=9.81#[m/s^2]
+cp=1005#[J/KgK]
+
 
 height_assist=1#[m] height of TROPoe's first point
 
 #stats
 max_height=0.2#[km] max height in TROPoe
 max_L=2000
-stb_class={'U':[-500,0],
-           'S':[0,500],
-           'N1':[-max_L,-500],
-           'N2':[500,max_L]}
-stb_class_uni=['S','N','U']
+stb_class={'VS':[0.25,10],
+           ' S':[0.01,0.25],
+           ' N':[-0.01,0.01],
+           ' U':[-0.25,-0.01],
+           'VU':[-10,-0.25]}
 
+p_value=0.05
 
-height_sel=74#[m]
-
+#graphics
+cmap = plt.get_cmap("coolwarm")
 
 #%% Initialization
 #config
@@ -64,20 +70,15 @@ sys.path.append(config['path_utils'])
 import utils as utl
 
 #load L data
-files=glob.glob(source_stb)
-data_stb= pd.concat([pd.read_csv(file) for file in files], ignore_index=True)
-
-time=data_stb.iloc[:,0].values*np.timedelta64(1, 's')+np.datetime64('1970-01-01T00:00:00')+time_offset
-
-L=np.zeros((len(time),len(height_sonic)))
-for i_h in range(len(height_sonic)):
-    L[:,i_h]=data_stb[f'MO_Length_Sonic_{height_sonic[i_h]}m (m)'].values
-    
-Data_stb=xr.Dataset()
-Data_stb['L']=xr.DataArray(data=L,coords={'time':time,'height':height_sonic})
+Data_stb= xr.open_mfdataset(source_stb)
 
 name_save_trp=os.path.join(cd,f'data/{unit}_all.nc')
 name_save_met=os.path.join(cd,f'data/{met}_int_{unit}_all.nc')
+
+#graphics
+colors=[cmap(val) for val in np.linspace(0, 1, len(stb_class))]
+
+#%% Main
 
 if not os.path.isfile(name_save_trp):
 
@@ -126,70 +127,77 @@ if not os.path.isfile(name_save_met):
 #load data
 Data_met=xr.open_dataset(name_save_met)
 
-#qc
-Data_stb['L']=Data_stb.L.clip(min=-max_L, max=max_L)
-print(f'{np.round(np.sum(np.abs(Data_stb.L).values==max_L)/np.sum(~np.isnan(Data_stb.L.values))*100,1)}% excluded L values')
-
 #interpilation
 Data_stb=Data_stb.interp(time=Data_trp.time)
 
-Data_stb['class']=xr.DataArray(data=['']*len(Data_stb.time),coords={'time':Data_stb.time})
-L=Data_stb.L.sel(height=height_sel)
+Data_stb['class']=xr.DataArray(data=['nn']*len(Data_stb.time),coords={'time':Data_stb.time})
+Ri=Data_stb.Ri
 for sc in stb_class:
-    Data_stb['class'].loc[(L>=stb_class[sc][0])*(L<=stb_class[sc][1])]=sc[0]
+    Data_stb['class'].loc[(Ri>=stb_class[sc][0])*(Ri<=stb_class[sc][1])]=sc
 
 #stats
-T_trp_avg=np.zeros((len(Data_trp.height),len(stb_class_uni)))
-T_trp_low=np.zeros((len(Data_trp.height),len(stb_class_uni)))
-T_trp_top=np.zeros((len(Data_trp.height),len(stb_class_uni)))
-for i_sc in range(len(stb_class_uni)):
+T_trp_avg=np.zeros((len(Data_trp.height),len(stb_class)))
+T_trp_low=np.zeros((len(Data_trp.height),len(stb_class)))
+T_trp_top=np.zeros((len(Data_trp.height),len(stb_class)))
+for i_sc in range(len(stb_class)):
+    sc=list(stb_class.keys())[i_sc]
     for i_h in range(len(Data_trp.height)):
-        T_trp_avg[i_h,i_sc]=utl.filt_stat(Data_trp.temperature.isel(height=i_h).where(Data_stb['class']==stb_class_uni[i_sc]).values,np.nanmean)
+        T_sel=Data_trp.temperature.isel(height=i_h).where(Data_stb['class']==sc).values
+        T_trp_avg[i_h,i_sc]=utl.filt_stat(T_sel,np.nanmean)
+        T_trp_low[i_h,i_sc]=utl.filt_BS_stat(T_sel,np.nanmean,p_value/2*100)
+        T_trp_top[i_h,i_sc]=utl.filt_BS_stat(T_sel,np.nanmean,(1-p_value/2)*100)
 
-Data_trp['temperature_avg']=xr.DataArray(data=T_trp_avg,coords={'height':Data_trp.height,'_class':stb_class_uni})
+Data_trp['temperature_avg']=xr.DataArray(data=T_trp_avg,coords={'height':Data_trp.height,'_class':list(stb_class.keys())})
+Data_trp['temperature_low']=xr.DataArray(data=T_trp_low,coords={'height':Data_trp.height,'_class':list(stb_class.keys())})
+Data_trp['temperature_top']=xr.DataArray(data=T_trp_top,coords={'height':Data_trp.height,'_class':list(stb_class.keys())})
 
-T_met_avg=np.zeros((len(Data_met.height),len(stb_class_uni)))
-T_met_low=np.zeros((len(Data_met.height),len(stb_class_uni)))
-T_met_top=np.zeros((len(Data_met.height),len(stb_class_uni)))
-for i_sc in range(len(stb_class_uni)):
+T_met_avg=np.zeros((len(Data_met.height),len(stb_class)))
+T_met_low=np.zeros((len(Data_met.height),len(stb_class)))
+T_met_top=np.zeros((len(Data_met.height),len(stb_class)))
+for i_sc in range(len(stb_class)):
+    sc=list(stb_class.keys())[i_sc]
     for i_h in range(len(Data_met.height)):
-        T_met_avg[i_h,i_sc]=utl.filt_stat(Data_met[var].isel(height=i_h).where(Data_stb['class']==stb_class_uni[i_sc]).values,np.nanmean)
+        T_sel=Data_met[var].isel(height=i_h).where(Data_stb['class']==sc).values
+        T_met_avg[i_h,i_sc]=utl.filt_stat(T_sel,np.nanmean)
+        T_met_low[i_h,i_sc]=utl.filt_BS_stat(T_sel,np.nanmean,p_value/2*100)
+        T_met_top[i_h,i_sc]=utl.filt_BS_stat(T_sel,np.nanmean,(1-p_value/2)*100)
 
-Data_met['temperature_avg']=xr.DataArray(data=T_met_avg,coords={'height':Data_met.height,'_class':stb_class_uni})
+Data_met['temperature_avg']=xr.DataArray(data=T_met_avg,coords={'height':Data_met.height,'_class':list(stb_class.keys())})
+Data_met['temperature_low']=xr.DataArray(data=T_met_low,coords={'height':Data_met.height,'_class':list(stb_class.keys())})
+Data_met['temperature_top']=xr.DataArray(data=T_met_top,coords={'height':Data_met.height,'_class':list(stb_class.keys())})
 
 #%% Plots
 plt.close("all")
-#L histograms
-sel=~np.isnan(Data_stb.L.mean(dim='time'))
-hsel=Data_stb.height[sel].values
-plt.figure(figsize=(18,10))
-for i_h in range(len(hsel)):
-    ax=plt.subplot(len(hsel),1,i_h+1)
-    plt.hist(Data_stb.L.sel(height=hsel[i_h]),bins=np.linspace(-max_L,max_L,100),color='k')
-    plt.grid()
-    plt.ylabel('Occurrence')
-    if i_h==len(hsel)-1:
-        plt.xlabel(r'$L$ [m]')
-    else:
-        ax.set_xticklabels([])
-    plt.text(-max_L*0.9,100,r'$z='+str(hsel[i_h])+'$ m')
-plt.tight_layout()
-    
-#average profiles
-plt.figure(figsize=(18,7))
-ctr=1
-for sc in stb_class_uni:
-    plt.subplot(1,len(stb_class_uni),ctr)
-    plt.plot(Data_met.temperature_avg.sel(_class=sc),Data_met.height,'.-k')
-    plt.plot(Data_trp.temperature_avg.sel(_class=sc),Data_trp.height,'.-r')
-    ctr+=1
 
-
-dT_dz_met=Data_met[var].isel(height=1)-Data_met[var].isel(height=0)
-dT_dz_trp=Data_trp['temperature'].isel(height=1)-Data_trp['temperature'].isel(height=0)
-DT_avg=np.abs(Data_trp.temperature.interp(height=Data_met.height)-Data_met[var]).mean(dim='height')
-
+#Ri histograms
+ctr=0
 plt.figure()
-plt.scatter(L,dT_dz_met,s=DT_avg*10)
-plt.gca().set_xscale('symlog')
+for sc in stb_class:
+    plt.hist(Data_stb.Ri.where(Data_stb['class']==sc),bins=np.linspace(stb_class[sc][0],stb_class[sc][1],20),density=True,color=colors[ctr])
+    plt.text(-7.5,10+ctr*10,f'{sc.strip()}: {int(np.sum(Data_stb["class"]==sc))} points',color=colors[ctr])
+    ctr+=1
 plt.grid()
+plt.ylabel('Occurrence')
+plt.xlabel('Ri')
+plt.gca().set_xscale('symlog',linthresh=0.01)
+plt.gca().set_yscale('log')
+plt.xticks(np.unique(np.array([stb_class[sc] for sc in stb_class])))
+   
+#average profiles
+plt.figure(figsize=(18,4))
+
+for i_sc in range(len(stb_class)):
+    plt.subplot(1,len(stb_class),i_sc+1)
+    plt.plot(Data_met.temperature_avg.isel(_class=i_sc),Data_met.height,'.-k')
+    plt.fill_betweenx(Data_met.height,Data_met.temperature_low.isel(_class=i_sc),
+                                      Data_met.temperature_top.isel(_class=i_sc),
+                                      color='k',alpha=0.25)
+    plt.plot(Data_trp.temperature_avg.isel(_class=i_sc),Data_trp.height,'.-r')
+    plt.fill_betweenx(Data_trp.height,Data_trp.temperature_low.isel(_class=i_sc),
+                                      Data_trp.temperature_top.isel(_class=i_sc),
+                                      color='r',alpha=0.25)
+    plt.plot(-g/cp*Data_trp.height+Data_met.temperature_avg.isel(_class=i_sc).isel(height=0),Data_trp.height,'--k')
+    
+    plt.xlim([15,25])
+    plt.grid()
+ 
