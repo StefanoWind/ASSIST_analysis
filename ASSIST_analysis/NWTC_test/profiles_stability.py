@@ -10,8 +10,6 @@ import xarray as xr
 import matplotlib
 from matplotlib import pyplot as plt
 import yaml
-import pandas as pd
-from scipy.stats import norm
 import glob
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
@@ -19,16 +17,6 @@ matplotlib.rcParams['font.size'] = 14
 
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
-
-# source_stb=os.path.join(cd,'data/nwtc.m5.b1/*csv')
-time_offset=np.timedelta64(300, 's')
-height_sonic=[15,41,61,74,100,119]#[m] sonic heights
-
-#user
-unit='ASSIST11'
-met='M5'
-
-var='temperature_rec'
 
 #dataset
 sources_trp={'ASSIST10':'data/awaken/nwtc.assist.tropoe.z01.c2/*nc',
@@ -39,6 +27,15 @@ sources_met={'M5':'data/nwtc.m5.a0/*nc',
              'M2':'data/nwtc.m2.a0/*nc'}
 
 source_stb='data/nwtc.m2.a0/*nc'
+
+time_offset=np.timedelta64(300, 's')
+height_sonic=[15,41,61,74,100,119]#[m] sonic heights
+
+#user
+unit='ASSIST11'
+met='M5'
+
+var='temperature_rec'
 
 g=9.81#[m/s^2]
 cp=1005#[J/KgK]
