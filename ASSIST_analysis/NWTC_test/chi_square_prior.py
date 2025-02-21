@@ -13,6 +13,7 @@ from scipy.stats import chi2
 from scipy.stats import norm
 import matplotlib
 import matplotlib.dates as mdates
+from scipy.stats import binned_statistic
 import pandas as pd
 import glob
 import xarray as xr
@@ -30,6 +31,7 @@ var='temperature_rec'
 
 #stats
 perc_lim=[0.5,99.5]
+bin_hour=np.arange(25)
 
 #graphics
 cmap = plt.get_cmap("viridis")
@@ -47,6 +49,8 @@ for m in np.arange(1,13):
         #load met data
         data_met=xr.open_mfdataset(files_met).rename({"air_temp":"temperature"}).rename({"air_temp_rec":"temperature_rec"})
         h_max=data_met.height.max().values
+        tnum=np.float64(data_met.time)/10**9
+        hour=(tnum-np.floor(tnum/(3600*24))*3600*24)/3600
         
         #load prior data
         file_pri=glob.glob(source_pri.format(month=m))[0]
@@ -86,9 +90,16 @@ for m in np.arange(1,13):
                 ctr2+=1
             ctr1+=1
         
+        #hourly stats
+        x_ah=np.zeros((len(height),len(bin_hour)-1))
+        for i_h in h_sel:
+            sel=~np.isnan(T[:,i_h])
+            x_ah[i_h,:]=binned_statistic(hour[sel],T[sel,i_h],statistic='mean',bins=bin_hour)[0]
+
         #%% Output
         Output=xr.Dataset()
         Output['mean_temperature']=xr.DataArray(data=x_a2,coords={'height':height})
+        Output['mean_temperature_hourly']=xr.DataArray(data=x_ah,coords={'height':height,'hour':utl.mid(bin_hour)})
         Output['covariance_temperature']=xr.DataArray(data=S_a2,coords={'height1':height,'height2':height})
         Output.to_netcdf(os.path.join(cd,'data/prior',f'Xa_Sa_datafile.nwtc.55_levels.month_{m:02}.cdf'))
             
@@ -129,8 +140,17 @@ for m in np.arange(1,13):
         plt.savefig(os.path.join(cd,f'figures/prior_test/{m:02}_met_check.png'))
         plt.close()
         
-        plt.figure(figsize=(18,8))
+        #hourly prior
+        plt.figure(figsize=(12,8))
+        plt.pcolor(utl.mid(bin_hour),height[h_sel],x_ah[h_sel,:],cmap='hot')
+        plt.xlabel('Hour (UTC)')
+        plt.ylabel(r'$z$ [m]')
+        plt.colorbar(label=r'Mean $T$ [$^\circ$C]')
         
+        plt.savefig(os.path.join(cd,f'figures/prior_test/{m:02}_met_prior.png'))
+        plt.close()
+        
+        plt.figure(figsize=(16,10))
         #mean
         ax=plt.subplot(2,2,1)
         plt.plot(x_a2[h_sel],height[h_sel],'.-k',label='Met')
