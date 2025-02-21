@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Chi^2 test of prior vs met tower
+Comprehensive check of prior based on met data
 """
 import os
 cd=os.path.dirname(__file__)
@@ -12,19 +12,22 @@ from matplotlib import pyplot as plt
 from scipy.stats import chi2
 from scipy.stats import norm
 import matplotlib
+import matplotlib.dates as mdates
 import glob
 import xarray as xr
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 14
 
-
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
+
+#dataset
 source_met=os.path.join(cd,'data/nwtc.m5.a0/*2022{month:02}*nc')
 source_pri=os.path.join(cd,'data/prior/Xa_Sa_datafile.denver.55_levels.month_{month:02}.cdf')
-
 var='temperature_rec'
+
+#graphics
 cmap = plt.get_cmap("viridis")
 
 #%% Initialization
@@ -63,15 +66,70 @@ for m in np.arange(1,13):
             x=T[i,h_sel]
             chi[m][i]=(x-x_a).T@S_a_inv@(x-x_a)
             
-        S_a2=np.cov(T[:,h_sel].T)
-        x_a2=np.nanmean(T[:,h_sel],axis=0)
+        #mean
+        x_a2=np.zeros(len(height))
+        for i_h in h_sel:
+            x_a2[i_h]=utl.filt_stat(T[:,i_h], np.nanmean)
+           
+        #covariance
+        S_a2=np.zeros((len(height),len(height)))
+        cov=np.cov(T[:,h_sel].T)
+        ctr1=0
+        for i_h1 in h_sel:
+            ctr2=0
+            for i_h2 in h_sel:
+                S_a2[i_h1,i_h2]=cov[ctr1,ctr2]
+                ctr2+=1
+            ctr1+=1
+        
+        #%% Output
+        Output=xr.Dataset()
+        Output['mean_temperature']=xr.DataArray(data=x_a2,coords={'height':height})
+        Output['covariance_temperature']=xr.DataArray(data=S_a2,coords={'height1':height,'height2':height})
+        Output.to_netcdf(os.path.join(cd,'data/prior',f'Xa_Sa_datafile.nwtc.55_levels.month_{m:02}.cdf'))
             
         #%% Plots 
         plt.figure(figsize=(16,10))
+        ctr=1
+        for i_h in h_sel:
+            ax=plt.subplot(len(h_sel),2,ctr*2-1)
+            plt.plot(data_met.time,data_met[var].isel(height=i_h),'-k')
+            plt.plot([data_met.time.values[0],data_met.time.values[-1]],[x_a2[i_h],x_a2[i_h]],'--r')
+            plt.ylim([-5,35])
+            plt.grid()
+            plt.ylabel(r'$T$ [$^\circ$C]')
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%m%d'))
+            if ctr==len(h_sel):
+                plt.xlabel('Time (UTC)')
+                ax.xaxis.set_major_formatter(mdates.DateFormatter('%m%d'))
+            else:
+                ax.set_xticklabels([])
+            plt.text(data_met.time[10],25,r'$z='+str(height[i_h])+r'$ m',bbox={'alpha':0.5,'color':'w'})
+            
+            
+            ax=plt.subplot(len(h_sel),2,ctr*2)
+            
+            plt.hist(T[:,i_h],np.arange(-10,40),density=True,color='k',alpha=0.5)
+            plt.plot(np.arange(-10,40,0.1),norm.pdf(np.arange(-10,40,0.1),loc=x_a2[ctr],scale=S_a2[ctr,ctr]**0.5),color='k')
+            
+            plt.ylabel('p.d.f.')
+            if ctr==len(h_sel):
+                plt.xlabel(r'$T$ [$^\circ$C]')
+            else:
+                ax.set_xticklabels([])
+                
+            plt.grid()
+            
+            ctr+=1
+        
+        plt.savefig(os.path.join(cd,f'figures/prior_test/{m:02}_met_check.png'))
+        plt.close()
+        
+        plt.figure(figsize=(18,10))
         
         #mean
-        ax=plt.subplot(2,3,1)
-        plt.plot(x_a2,height[h_sel],'.-k',label='Met')
+        ax=plt.subplot(2,2,1)
+        plt.plot(x_a2[h_sel],height[h_sel],'.-k',label='Met')
         plt.plot(x_a,height[h_sel],'.-r',label='Prior')
         plt.xlabel(r'Mean $T$ [$^\circ$C]')
         plt.ylabel(r'$z$ [m]')
@@ -80,21 +138,8 @@ for m in np.arange(1,13):
         plt.grid()
         plt.legend()
         
-        #pdf
-        colors=[cmap(val) for val in np.linspace(0, 1, len(h_sel))]
-        ax=plt.subplot(2,3,2)
-        ctr=0
-        for i_h in h_sel:
-            hst=plt.hist(T[:,i_h],np.arange(-10,40),density=True,alpha=0.25,label=r'$z='+str(np.round(height[i_h],1))+'$ m',color=colors[ctr])
-            plt.plot(np.arange(-10,40,0.1),norm.pdf(np.arange(-10,40,0.1),loc=x_a2[ctr],scale=S_a2[ctr,ctr]**0.5),color=colors[ctr])
-            ctr+=1
-        plt.xlabel(r'$T$ [$^\circ$C]')
-        plt.ylabel('p.d.f.')
-        plt.legend()
-        plt.grid()
-        
         #chi-square
-        ax=plt.subplot(2,3,3)
+        ax=plt.subplot(2,2,2)
         bins=np.linspace(0,np.nanpercentile(chi[m],95))
         plt.hist(chi[m],bins,density=True,color='k',alpha=0.5,label='Met+prior')
         plt.plot((bins[1:]+bins[:-1])/2,chi2.pdf((bins[1:]+bins[:-1])/2,len(h_sel)),'k',label='Ideal')
@@ -104,10 +149,10 @@ for m in np.arange(1,13):
         plt.legend()
         
         ax=plt.subplot(2,2,3)
-        plt.pcolor(height[h_sel],height[h_sel],S_a2,cmap='hot')
-        for i in range(S_a2.shape[0]):
-            for j in range(S_a2.shape[1]):
-                ax.text(height[h_sel][j], height[h_sel][i], f"{S_a2[i, j]:.1f}", 
+        plt.pcolor(height[h_sel],height[h_sel],cov,cmap='hot')
+        for i in range(cov.shape[0]):
+            for j in range(cov.shape[1]):
+                ax.text(height[h_sel][j], height[h_sel][i], f"{cov[i, j]:.1f}", 
                         ha='center', va='center', color='g', fontsize=10)
         plt.xlabel(r'$z$ [m]')
         plt.ylabel(r'$z$ [m]')
@@ -135,4 +180,5 @@ for m in np.arange(1,13):
         plt.close()
         data_met.close()
         data_pri.close()
+    
 
