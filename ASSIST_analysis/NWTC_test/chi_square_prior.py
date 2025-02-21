@@ -13,6 +13,7 @@ from scipy.stats import chi2
 from scipy.stats import norm
 import matplotlib
 import matplotlib.dates as mdates
+import pandas as pd
 import glob
 import xarray as xr
 matplotlib.rcParams['font.family'] = 'serif'
@@ -26,6 +27,9 @@ source_config=os.path.join(cd,'configs','config.yaml')
 source_met=os.path.join(cd,'data/nwtc.m5.a0/*2022{month:02}*nc')
 source_pri=os.path.join(cd,'data/prior/Xa_Sa_datafile.denver.55_levels.month_{month:02}.cdf')
 var='temperature_rec'
+
+#stats
+perc_lim=[0.5,99.5]
 
 #graphics
 cmap = plt.get_cmap("viridis")
@@ -61,19 +65,19 @@ for m in np.arange(1,13):
         #calculate chi-square
         chi[m]=np.zeros(len(data_met.time))
         S_a_inv=np.linalg.inv(S_a)
-        T=data_met[var].values
+        T=data_met[var].where(data_met[var]>=np.nanpercentile(data_met[var],perc_lim[0]))\
+                       .where(data_met[var]<=np.nanpercentile(data_met[var],perc_lim[1])).values
+                       
         for i in range(len(data_met.time)):
             x=T[i,h_sel]
             chi[m][i]=(x-x_a).T@S_a_inv@(x-x_a)
             
         #mean
-        x_a2=np.zeros(len(height))
-        for i_h in h_sel:
-            x_a2[i_h]=utl.filt_stat(T[:,i_h], np.nanmean)
+        x_a2=np.nanmean(T,axis=0)
            
         #covariance
         S_a2=np.zeros((len(height),len(height)))
-        cov=np.cov(T[:,h_sel].T)
+        cov= pd.DataFrame(T[:,h_sel]).dropna().cov().values
         ctr1=0
         for i_h1 in h_sel:
             ctr2=0
@@ -93,9 +97,9 @@ for m in np.arange(1,13):
         ctr=1
         for i_h in h_sel:
             ax=plt.subplot(len(h_sel),2,ctr*2-1)
-            plt.plot(data_met.time,data_met[var].isel(height=i_h),'-k')
+            plt.plot(data_met.time,T[:,i_h],'-k')
             plt.plot([data_met.time.values[0],data_met.time.values[-1]],[x_a2[i_h],x_a2[i_h]],'--r')
-            plt.ylim([-5,35])
+            plt.ylim([-10,40])
             plt.grid()
             plt.ylabel(r'$T$ [$^\circ$C]')
             ax.xaxis.set_major_formatter(mdates.DateFormatter('%m%d'))
@@ -110,7 +114,7 @@ for m in np.arange(1,13):
             ax=plt.subplot(len(h_sel),2,ctr*2)
             
             plt.hist(T[:,i_h],np.arange(-10,40),density=True,color='k',alpha=0.5)
-            plt.plot(np.arange(-10,40,0.1),norm.pdf(np.arange(-10,40,0.1),loc=x_a2[ctr],scale=S_a2[ctr,ctr]**0.5),color='k')
+            plt.plot(np.arange(-10,40,0.1),norm.pdf(np.arange(-10,40,0.1),loc=x_a2[i_h],scale=S_a2[i_h,i_h]**0.5),color='k')
             
             plt.ylabel('p.d.f.')
             if ctr==len(h_sel):
@@ -125,7 +129,7 @@ for m in np.arange(1,13):
         plt.savefig(os.path.join(cd,f'figures/prior_test/{m:02}_met_check.png'))
         plt.close()
         
-        plt.figure(figsize=(18,10))
+        plt.figure(figsize=(18,8))
         
         #mean
         ax=plt.subplot(2,2,1)
