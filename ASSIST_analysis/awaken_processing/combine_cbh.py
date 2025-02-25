@@ -20,30 +20,29 @@ warnings.filterwarnings('ignore')
 plt.close('all')
 
 #%% Inputs
+
+#dataset
 sources={'A1':os.path.join(cd,'data/awaken/sa1.ceil.z01.cbh/*{datestr}*nc'),
          'H':os.path.join(cd,'data/awaken/sgpceilS6.cbh/*{datestr}*nc')}
-
-# 'E37':os.path.join(cd,'data/awaken/sgpdlprofwstats4newsE37.cbh/*{datestr}*nc')
 
 source_lyt=os.path.join(cd,'data','20250225_AWAKEN_layout.nc')
 
 sdate='20230601'
 edate='20230607'
 
-dtime=600#[s]
-max_time_diff=300#[s]
+#time interpolation
+dtime=60#[s]
+max_time_diff=30#[s]
 
+#graphics
 colors={'A1':'b','H':'g','E37':'m'}
    
 #%% Initialization
-
 dates=np.arange(np.datetime64(f"{sdate[:4]}-{sdate[4:6]}-{sdate[6:]}T00:00:00"),
-                np.datetime64(f"{edate[:4]}-{edate[4:6]}-{edate[6:]}T00:00:00"),np.timedelta64(1,'D'))
-
+                np.datetime64(f"{edate[:4]}-{edate[4:6]}-{edate[6:]}T00:00:00")+np.timedelta64(1,'s'),np.timedelta64(1,'D'))
 time_offset=np.arange(0,3600*24+1,dtime)
 
 dir_save=os.path.join(cd,'data/awaken/','s'+'.s'.join(list(sources.keys())).lower()+'.ceil.z01.cbh')
-
 os.makedirs(dir_save,exist_ok=True)
 
 #%% Main
@@ -57,18 +56,19 @@ for d in dates:
         files=glob.glob(sources[s].format(datestr=str(d)[:10].replace('-','')))
         
         if len(files)==1:
+            
+            #load data
             data=xr.open_dataset(files[0])
             basetime=data.base_time.values
             data=data.where(data['first_cbh']>0)
             
+            #interpolate in time
             cbh_int=data.first_cbh.interp(time=time_offset)
             time_diff=data.time.interp(time=time_offset,method='nearest')-time_offset
-            
-            data['time_np']=np.datetime64('1970-01-01T00:00:00')+np.timedelta64(1,'s')*(basetime+data.time)
-            
             cbh_all[:,i_s]=cbh_int.where(np.abs(time_diff)<=max_time_diff)
     
-            plt.plot(data.time_np,data.first_cbh,'.',color=colors[s],alpha=0.1)
+            #plots
+            plt.plot(np.datetime64('1970-01-01T00:00:00')+np.timedelta64(1,'s')*(basetime+data.time),data.first_cbh,'.',color=colors[s],alpha=0.1)
             plt.plot(time_np,cbh_all[:,i_s],'-',color=colors[s],alpha=1,label=s)
         i_s+=1
     
