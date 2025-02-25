@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Extract CBH from arm data
+Extract CBH from different sites, including ARM
 """
 
 # -*- coding: utf-8 -*-
@@ -37,6 +37,9 @@ else:
 
 #%% Functions
 def dates_from_files(files):
+    '''
+    Extract data from data filenames
+    '''
     dates=[]
     for f in files:
         match = re.search( r"\b\d{8}\.\d{6}\b", os.path.basename(f))
@@ -45,6 +48,11 @@ def dates_from_files(files):
     return dates
 
 def save_cbh(file):
+    '''
+    Save CBH in TROPoe format
+    '''
+    
+    #load data
     Data=xr.open_mfdataset(file,combine="nested",concat_dim="time")
     
     #time info
@@ -52,7 +60,7 @@ def save_cbh(file):
     basetime=np.floor(tnum[0]/(24*3600))*24*3600
     time_offset=tnum-basetime
     
-    #exract cbh
+    #exract cbh from ceilometer or lidar
     if 'cloud_data' in Data:
         cbh=np.float64(Data['cloud_data'].values[:,0])
     elif 'first_cbh' in Data:
@@ -129,12 +137,13 @@ for c in config['channels']:
             dir_save=os.path.join(os.path.join(cd,'data','awaken',dir_name))
             os.makedirs(dir_save,exist_ok=True)
             
+            #scan local files
             local_files=[os.path.basename(f) for f in glob.glob(os.path.join(dir_save,'*nc'))]
             
+            #download files from ftp
             for f in files:
                 if len(f)>2:
-                    match = re.search( r"\b\d{8}\.\d{6}\b", os.path.basename(f))
-                    date_file= datetime.strptime(match.group().split('.')[0],'%Y%m%d')
+                    date_file= datetime.strptime(dates_from_files([f])[0],'%Y%m%d')
                     if date_file>=datetime.strptime(sdate,'%Y%m%d') and date_file<=datetime.strptime(edate,'%Y%m%d'):
                         if f not in local_files: 
                             local_filename=os.path.join(os.path.join(dir_save,f))
