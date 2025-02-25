@@ -11,6 +11,7 @@ import re
 import warnings
 from datetime import datetime
 import numpy as np
+from doe_dap_dl import DAP
 import yaml
 import glob
 import xarray as xr
@@ -25,15 +26,13 @@ if len(sys.argv)==1:
     sdate='20230601'
     edate='20230607'
     download=True #download new files?
-    replace=True#replace existing files
-    delete=False#delete input files?
+    replace=False#replace existing files
 else:
     source_config=sys.argv[1]
     sdate=sys.argv[2]
     edate=sys.argv[3]
     download=sys.argv[5]=="True"
     replace=sys.argv[6]=="True"
-    delete=sys.argv[7]=="True"
 
 #%% Functions
 def dates_from_files(files):
@@ -90,18 +89,16 @@ print(f"sdate: {sdate}")
 print(f"edate: {edate}")
 print(f"download: {download}")
 print(f"replace: {replace}")
-print(f"delete: {delete}")
 
 #config
 with open(source_config, 'r') as fid:
     config = yaml.safe_load(fid)
-    
-sys.path.append(config['path_dap'])
-from doe_dap_dl import DAP
 
 if download==True:
     a2e = DAP('a2e.energy.gov',confirm_downloads=False)
     a2e.setup_basic_auth(username=config['wdh']['username'], password=config['wdh']['password'])
+    
+os.makedirs(config['save_path'],exist_ok=True)
     
 #%% Main
 for c in config['channels']:
@@ -110,7 +107,7 @@ for c in config['channels']:
     #WDH pipeline
     if 'awaken' in channel:
         #download
-        dir_save=os.path.join(cd,'data',channel)
+        dir_save=os.path.join(config['save_path'],channel)
 
         if download:
 
@@ -134,7 +131,7 @@ for c in config['channels']:
             dir_name='.'.join(files[0].split('.')[:2])
             
             #create local folder
-            dir_save=os.path.join(os.path.join(cd,'data','awaken',dir_name))
+            dir_save=os.path.join(os.path.join(config['save_path'],'awaken',dir_name))
             os.makedirs(dir_save,exist_ok=True)
             
             #scan local files
@@ -154,11 +151,11 @@ for c in config['channels']:
                             print(f'Skipped {f}')
                 
     #process
-    files=glob.glob(os.path.join(cd,'data',dir_save,'*nc'))
+    files=glob.glob(os.path.join(dir_save,'*nc'))
     dates=dates_from_files(files)
     
     for d in dates:
-        file_sel=glob.glob(os.path.join(cd,'data',dir_save,'*'+d+'*nc'))[0]
+        file_sel=glob.glob(os.path.join(dir_save,'*'+d+'*nc'))[0]
         save_cbh(file_sel)
             
                 
