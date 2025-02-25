@@ -169,7 +169,7 @@ plt.subplot(2,2,3)
 plt.pcolor(time,z,bias_dav,cmap='seismic')
 plt.xlabel('Time')
 plt.ylabel(r'$z$')
-plt.colorbar(label='$\hat{x}-\hat{x}$')
+plt.colorbar(label='$\hat{x}-x$')
 plt.title('Phase-average of bias')
 
 plt.subplot(2,2,4)

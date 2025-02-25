@@ -15,14 +15,14 @@ import matplotlib.dates as mdates
 import glob
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 16
+matplotlib.rcParams['font.size'] = 12
 
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
 
 #user
-unit='ASSIST11'#assist id
-met='M5'#met tower id
+unit='ASSIST10'#assist id
+met='M2'#met tower id
 
 #dataset
 sources_trp={'ASSIST10':'data/awaken/nwtc.assist.tropoe.z01.c2/*nc',
@@ -35,7 +35,7 @@ sources_met={'M5':'data/nwtc.m5.a0/*nc',
 height_assist=1#[m] height of TROPoe's first point
 
 #user
-var='met_temperature_rec'#selected temperature variable in M5 data
+var='met_temperature'#selected temperature variable in M5 data
 
 #stats
 p_value=0.05#for CI
