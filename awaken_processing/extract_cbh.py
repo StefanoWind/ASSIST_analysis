@@ -46,7 +46,7 @@ def dates_from_files(files):
     
     return dates
 
-def save_cbh(file):
+def save_cbh(file,replace=False):
     '''
     Save CBH in TROPoe format
     '''
@@ -59,29 +59,36 @@ def save_cbh(file):
     basetime=np.floor(tnum[0]/(24*3600))*24*3600
     time_offset=tnum-basetime
     
-    #exract cbh from ceilometer or lidar
-    if 'cloud_data' in Data:
-        cbh=np.float64(Data['cloud_data'].values[:,0])
-    elif 'first_cbh' in Data:
-        cbh=Data['first_cbh'].values
-    elif 'dl_cbh' in Data:
-        cbh=Data['dl_cbh'].values
-    
-    #save cbh
-    Output=xr.Dataset()
-    Output['first_cbh']=xr.DataArray(data=np.int32(np.nan_to_num(cbh,nan=-9999)),
-                                     coords={'time':np.int32(time_offset)},
-                                     attrs={'description':'First cloud base height','units':'m'})
-
-    Output['base_time']=np.int64(basetime)
-    Output.attrs['comment']='created on '+datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S')+' by stefano.letizia@nrel.gov'
-    
+    #naming
     dir_save_cbh=os.path.join(os.path.dirname(file)[:-2]+'cbh')
     name_save=os.path.basename(dir_save_cbh)+'.'+datetime.utcfromtimestamp(basetime).strftime('%Y%m%d.%H%M%S')+'.nc'
     
-    os.makedirs(dir_save_cbh,exist_ok=True)
-    Output.to_netcdf(os.path.join(dir_save_cbh,name_save))
+    if os.path.isfile(os.path.join(dir_save_cbh,name_save))==False or replace:
+        #exract cbh from ceilometer or lidar
+        if 'cloud_data' in Data:
+            cbh=np.float64(Data['cloud_data'].values[:,0])
+        elif 'first_cbh' in Data:
+            cbh=Data['first_cbh'].values
+        elif 'dl_cbh' in Data:
+            cbh=Data['dl_cbh'].values
+        
+        #save cbh
+        Output=xr.Dataset()
+        Output['first_cbh']=xr.DataArray(data=np.int32(np.nan_to_num(cbh,nan=-9999)),
+                                         coords={'time':np.int32(time_offset)},
+                                         attrs={'description':'First cloud base height','units':'m'})
     
+        Output['base_time']=np.int64(basetime)
+        Output.attrs['comment']='created on '+datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S')+' by stefano.letizia@nrel.gov'
+        
+        
+        
+        os.makedirs(dir_save_cbh,exist_ok=True)
+        Output.to_netcdf(os.path.join(dir_save_cbh,name_save))
+        return f'{os.path.basename(file)} created'
+    else:
+        return f'{os.path.basename(file)} already created, skipped'
+        
 #%% Initialization
 print("Running lidar profile reconstruction:")
 print(f"source_config: {source_config}")
@@ -146,9 +153,9 @@ for c in config['channels']:
                             local_filename=os.path.join(os.path.join(dir_save,f))
                             with open(local_filename, "wb") as fid:
                                 ftp.retrbinary(f"RETR {channel+'/'+f}", fid.write)
-                                print(f'Transferred {f}')
+                                print(f'{f} transferred',flush=True)
                         else:
-                            print(f'Skipped {f}')
+                            print(f'{f} already transferred, skipped',flush=True)
                 
     #process
     files=sorted(glob.glob(os.path.join(dir_save,'*nc')))
@@ -156,7 +163,8 @@ for c in config['channels']:
     
     for d in dates:
         file_sel=glob.glob(os.path.join(dir_save,'*'+d+'*nc'))[0]
-        save_cbh(file_sel)
+        output=save_cbh(file_sel,replace)
+        print(output,flush=True)
             
                 
         
