@@ -23,11 +23,16 @@ plt.close('all')
 
 #dataset
 sources={'A1':'/scratch/sletizia/data/awaken/sa1.ceil.z01.cbh/*{datestr}*nc',
-         'H':'/scratch/sletizia/data/awaken/sgpceilS6.cbh/*{datestr}*nc'}
+          'H':'/scratch/sletizia/data/awaken/sgpceilS6.cbh/*{datestr}*nc'}
 
 path_save='/scratch/sletizia/data/awaken'
 
-sdate='20221001'
+# sources={'A1':os.path.join(cd,'data/awaken/sa1.ceil.z01.cbh/*{datestr}*nc'),
+#          'H': os.path.join(cd,'data/awaken/sgpceilS6.cbh/*{datestr}*nc')}
+
+# path_save=os.path.join(cd,'data/awaken')
+
+sdate='20230701'
 edate='20231031'
 
 #time interpolation
@@ -60,6 +65,11 @@ for d in dates:
             
             #load data
             data=xr.open_dataset(files[0])
+            
+            #resolve duplicates
+            if data.time.to_series().duplicated().any():
+                data = data.groupby('time').mean()
+    
             basetime=data.base_time.values
             data=data.where(data['first_cbh']>0)
             
@@ -110,7 +120,7 @@ for d in dates:
         plt.grid()
         
         plt.savefig(os.path.join(dir_save,name_save.replace('nc','png')))
-        plt.close()
+    plt.close()
         
         
 
