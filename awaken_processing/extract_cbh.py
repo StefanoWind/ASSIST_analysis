@@ -31,8 +31,8 @@ else:
     source_config=sys.argv[1]
     sdate=sys.argv[2]
     edate=sys.argv[3]
-    download=sys.argv[5]=="True"
-    replace=sys.argv[6]=="True"
+    download=sys.argv[4]=="True"
+    replace=sys.argv[5]=="True"
 
 #%% Functions
 def dates_from_files(files):
@@ -135,7 +135,7 @@ for c in config['channels']:
             os.makedirs(dir_save,exist_ok=True)
             
             #scan local files
-            local_files=[os.path.basename(f) for f in glob.glob(os.path.join(dir_save,'*nc'))]
+            local_files=[os.path.basename(f) for f in sorted(glob.glob(os.path.join(dir_save,'*nc')))]
             
             #download files from ftp
             for f in files:
@@ -151,7 +151,7 @@ for c in config['channels']:
                             print(f'Skipped {f}')
                 
     #process
-    files=glob.glob(os.path.join(dir_save,'*nc'))
+    files=sorted(glob.glob(os.path.join(dir_save,'*nc')))
     dates=dates_from_files(files)
     
     for d in dates:
