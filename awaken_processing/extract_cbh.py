@@ -50,44 +50,46 @@ def save_cbh(file,replace=False):
     '''
     Save CBH in TROPoe format
     '''
-    
-    #load data
-    Data=xr.open_mfdataset(file,combine="nested",concat_dim="time")
-    
-    #time info
-    tnum=np.float64(Data['time'].astype('datetime64[s]').values)/10**9
-    basetime=np.floor(tnum[0]/(24*3600))*24*3600
-    time_offset=tnum-basetime
-    
-    #naming
-    dir_save_cbh=os.path.join(os.path.dirname(file)[:-2]+'cbh')
-    name_save=os.path.basename(dir_save_cbh)+'.'+datetime.utcfromtimestamp(basetime).strftime('%Y%m%d.%H%M%S')+'.nc'
-    
-    if os.path.isfile(os.path.join(dir_save_cbh,name_save))==False or replace:
-        #exract cbh from ceilometer or lidar
-        if 'cloud_data' in Data:
-            cbh=np.float64(Data['cloud_data'].values[:,0])
-        elif 'first_cbh' in Data:
-            cbh=Data['first_cbh'].values
-        elif 'dl_cbh' in Data:
-            cbh=Data['dl_cbh'].values
+    try:
+        #load data
+        Data=xr.open_mfdataset(file,combine="nested",concat_dim="time")
         
-        #save cbh
-        Output=xr.Dataset()
-        Output['first_cbh']=xr.DataArray(data=np.int32(np.nan_to_num(cbh,nan=-9999)),
-                                         coords={'time':np.int32(time_offset)},
-                                         attrs={'description':'First cloud base height','units':'m'})
-    
-        Output['base_time']=np.int64(basetime)
-        Output.attrs['comment']='created on '+datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S')+' by stefano.letizia@nrel.gov'
+        #time info
+        tnum=np.float64(Data['time'].astype('datetime64[s]').values)/10**9
+        basetime=np.floor(tnum[0]/(24*3600))*24*3600
+        time_offset=tnum-basetime
         
+        #naming
+        dir_save_cbh=os.path.join(os.path.dirname(file[0])[:-2]+'cbh')
+        name_save=os.path.basename(dir_save_cbh)+'.'+datetime.utcfromtimestamp(basetime).strftime('%Y%m%d.%H%M%S')+'.nc'
         
+        if os.path.isfile(os.path.join(dir_save_cbh,name_save))==False or replace:
+            #exract cbh from ceilometer or lidar
+            if 'cloud_data' in Data:
+                cbh=np.float64(Data['cloud_data'].values[:,0])
+            elif 'first_cbh' in Data:
+                cbh=Data['first_cbh'].values
+            elif 'dl_cbh' in Data:
+                cbh=Data['dl_cbh'].values
+            
+            #save cbh
+            Output=xr.Dataset()
+            Output['first_cbh']=xr.DataArray(data=np.int32(np.nan_to_num(cbh,nan=-9999)),
+                                             coords={'time':np.int32(time_offset)},
+                                             attrs={'description':'First cloud base height','units':'m'})
         
-        os.makedirs(dir_save_cbh,exist_ok=True)
-        Output.to_netcdf(os.path.join(dir_save_cbh,name_save))
-        return f'{os.path.basename(file)} created'
-    else:
-        return f'{os.path.basename(file)} already created, skipped'
+            Output['base_time']=np.int64(basetime)
+            Output.attrs['comment']='created on '+datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S')+' by stefano.letizia@nrel.gov'
+            
+            
+            
+            os.makedirs(dir_save_cbh,exist_ok=True)
+            Output.to_netcdf(os.path.join(dir_save_cbh,name_save))
+            return f'{file} created'
+        else:
+            return f'{file} already created, skipped'
+    except:
+        return f'{file} failed'
         
 #%% Initialization
 print("Running lidar profile reconstruction:")
@@ -162,7 +164,7 @@ for c in config['channels']:
     dates=dates_from_files(files)
     
     for d in dates:
-        file_sel=glob.glob(os.path.join(dir_save,'*'+d+'*nc'))[0]
+        file_sel=glob.glob(os.path.join(dir_save,'*'+d+'*nc'))
         output=save_cbh(file_sel,replace)
         print(output,flush=True)
             
