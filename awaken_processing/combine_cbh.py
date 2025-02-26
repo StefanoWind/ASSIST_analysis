@@ -32,7 +32,7 @@ path_save='/scratch/sletizia/data/awaken'
 
 # path_save=os.path.join(cd,'data/awaken')
 
-sdate='20230701'
+sdate='20221001'
 edate='20231031'
 
 #time interpolation
@@ -60,8 +60,9 @@ for d in dates:
     for s in sources:
         files=glob.glob(sources[s].format(datestr=str(d)[:10].replace('-','')))
         
-        basetime=0
+        found=False
         if len(files)==1:
+            found=True
             
             #load data
             data=xr.open_dataset(files[0])
@@ -83,7 +84,7 @@ for d in dates:
             plt.plot(time_np,cbh_all[:,i_s],'-',color=colors[s],alpha=1,label=s)
         i_s+=1
     
-    if basetime>0:
+    if found:
         #stats
         cbh_sum=np.nanmean(cbh_all,axis=1)
         cbh_sel=cbh_all[~np.isnan(np.sum(cbh_all,axis=1)),:]
