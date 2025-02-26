@@ -52,7 +52,7 @@ def save_cbh(file,replace=False):
     '''
     try:
         #load data
-        Data=xr.open_mfdataset(file,combine="nested",concat_dim="time")
+        Data=xr.open_dataset(file)
         
         #time info
         tnum=np.float64(Data['time'].astype('datetime64[s]').values)/10**9
@@ -60,7 +60,7 @@ def save_cbh(file,replace=False):
         time_offset=tnum-basetime
         
         #naming
-        dir_save_cbh=os.path.join(os.path.dirname(file[0])[:-2]+'cbh')
+        dir_save_cbh=os.path.join(os.path.dirname(file)[:-2]+'cbh')
         name_save=os.path.basename(dir_save_cbh)+'.'+datetime.utcfromtimestamp(basetime).strftime('%Y%m%d.%H%M%S')+'.nc'
         
         if os.path.isfile(os.path.join(dir_save_cbh,name_save))==False or replace:
@@ -85,11 +85,11 @@ def save_cbh(file,replace=False):
             
             os.makedirs(dir_save_cbh,exist_ok=True)
             Output.to_netcdf(os.path.join(dir_save_cbh,name_save))
-            return f'{file} created'
+            return f'{os.path.basename(file)} created'
         else:
-            return f'{file} already created, skipped'
+            return f'{os.path.basename(file)} already created, skipped'
     except:
-        return f'{file} failed'
+        return f'{os.path.basename(file)} failed'
         
 #%% Initialization
 print("Running lidar profile reconstruction:")
@@ -165,8 +165,11 @@ for c in config['channels']:
     
     for d in dates:
         file_sel=glob.glob(os.path.join(dir_save,'*'+d+'*nc'))
-        output=save_cbh(file_sel,replace)
-        print(output,flush=True)
+        if len(file_sel)==1:
+            output=save_cbh(file_sel[0],replace)
+            print(output,flush=True)
+        else:
+            print(f'Zero or multiple files found on {d}',flush=True)
             
                 
         
