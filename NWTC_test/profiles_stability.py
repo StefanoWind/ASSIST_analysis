@@ -28,8 +28,8 @@ sources_met={'M5':'data/nwtc.m5.a0/*nc',
 
 source_stb='data/nwtc.m2.a0/*nc'
 
-time_offset=np.timedelta64(300, 's')
-height_sonic=[15,41,61,74,100,119]#[m] sonic heights
+height_sonic=[15,41,61,74,100,119]#[m] sonic heights at M5
+height_assist=1#[m] height of TROPoe's first point
 
 #user
 unit='ASSIST11'
@@ -37,11 +37,9 @@ met='M5'
 
 var='temperature_rec'
 
-g=9.81#[m/s^2]
-cp=1005#[J/KgK]
+g=9.81#[m/s^2] grvity acceleration
+cp=1005#[J/KgK] #air heat capacity
 
-
-height_assist=1#[m] height of TROPoe's first point
 
 #stats
 max_height=0.2#[km] max height in TROPoe
@@ -52,7 +50,7 @@ stb_class={'VS':[0.25,10],
            ' U':[-0.25,-0.01],
            'VU':[-10,-0.25]}
 
-p_value=0.05
+p_value=0.05# for CI
 
 #graphics
 cmap = plt.get_cmap("coolwarm")
@@ -124,13 +122,14 @@ if not os.path.isfile(name_save_met):
 #load data
 Data_met=xr.open_dataset(name_save_met)
 
-#interpilation
+#interpolation of stability data
 Data_stb=Data_stb.interp(time=Data_trp.time)
 
+#define stability class
 Data_stb['class']=xr.DataArray(data=['nn']*len(Data_stb.time),coords={'time':Data_stb.time})
 Ri=Data_stb.Ri
 for sc in stb_class:
-    Data_stb['class'].loc[(Ri>=stb_class[sc][0])*(Ri<=stb_class[sc][1])]=sc
+    Data_stb['class'].loc[(Ri>stb_class[sc][0])*(Ri<=stb_class[sc][1])]=sc
 
 #stats
 T_trp_avg=np.zeros((len(Data_trp.height),len(stb_class)))
@@ -165,13 +164,13 @@ Data_met['temperature_top']=xr.DataArray(data=T_met_top,coords={'height':Data_me
 
 #%% Plots
 plt.close("all")
-
+    
 #Ri histograms
 ctr=0
 plt.figure()
 for sc in stb_class:
     plt.hist(Data_stb.Ri.where(Data_stb['class']==sc),bins=np.linspace(stb_class[sc][0],stb_class[sc][1],20),density=True,color=colors[ctr])
-    plt.text(-7.5,10+ctr*10,f'{sc.strip()}: {int(np.sum(Data_stb["class"]==sc))} points',color=colors[ctr])
+    plt.text(-7.5,5*np.exp(1.05*ctr),f'{sc.strip()}: {int(np.sum(Data_stb["class"]==sc))} points',color=colors[ctr],bbox={'color':'k','alpha':0.5})
     ctr+=1
 plt.grid()
 plt.ylabel('Occurrence')
@@ -179,17 +178,18 @@ plt.xlabel('Ri')
 plt.gca().set_xscale('symlog',linthresh=0.01)
 plt.gca().set_yscale('log')
 plt.xticks(np.unique(np.array([stb_class[sc] for sc in stb_class])))
+plt.ylim([10**-3*5,1000])
    
 #average profiles
 plt.figure(figsize=(18,4))
 
 for i_sc in range(len(stb_class)):
     plt.subplot(1,len(stb_class),i_sc+1)
-    plt.plot(Data_met.temperature_avg.isel(_class=i_sc),Data_met.height,'.-k')
+    plt.plot(Data_met.temperature_avg.isel(_class=i_sc),Data_met.height,'.-k',label='Met')
     plt.fill_betweenx(Data_met.height,Data_met.temperature_low.isel(_class=i_sc),
                                       Data_met.temperature_top.isel(_class=i_sc),
                                       color='k',alpha=0.25)
-    plt.plot(Data_trp.temperature_avg.isel(_class=i_sc),Data_trp.height,'.-r')
+    plt.plot(Data_trp.temperature_avg.isel(_class=i_sc),Data_trp.height,'.-r',label='TROPoe')
     plt.fill_betweenx(Data_trp.height,Data_trp.temperature_low.isel(_class=i_sc),
                                       Data_trp.temperature_top.isel(_class=i_sc),
                                       color='r',alpha=0.25)
@@ -197,4 +197,10 @@ for i_sc in range(len(stb_class)):
     
     plt.xlim([15,25])
     plt.grid()
- 
+    plt.xlabel(r'$T$ [$^\circ$C]')
+    if i_sc==0:
+        plt.ylabel(r'$z$ [m]')
+    
+    plt.title(Data_met._class.values[i_sc])
+plt.tight_layout()
+plt.legend()
