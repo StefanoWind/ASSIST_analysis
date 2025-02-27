@@ -26,8 +26,8 @@ if len(sys.argv)==1:
     path_save=os.path.join(cd,'data/awaken')
     source1='A1'
     source2='H'
-    sdate='20230428'
-    edate='20230429'
+    sdate='20230828'
+    edate='20230829'
 else:
     path_save=sys.argv[1]
     source1=sys.argv[2]
@@ -66,10 +66,10 @@ for d in dates:
     i_s=0
     time_np=d+np.timedelta64(1,'s')*time_offset
     
+    found=0
     for s in sources_sel:
         files=glob.glob(sources[s].format(datestr=str(d)[:10].replace('-','')))
         
-        found=0
         if len(files)==1:
             found+=1
             
