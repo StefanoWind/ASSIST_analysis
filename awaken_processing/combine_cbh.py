@@ -26,8 +26,8 @@ if len(sys.argv)==1:
     path_save=os.path.join(cd,'data/awaken')
     source1='A1'
     source2='H'
-    sdate='20230801'
-    edate='20231031'
+    sdate='20230428'
+    edate='20230429'
 else:
     path_save=sys.argv[1]
     source1=sys.argv[2]
@@ -44,7 +44,7 @@ dtime=60#[s] time step
 max_time_diff=30#[s] maximum time difference
 
 #stats
-max_flat=0.2#ratio of points with 0 time derivative
+max_flat=0.5#ratio of points with 0 time derivative
 
 #graphics
 colors={'A1':'b','H':'g','E37':'m'}
