@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore")
 source='Y:/Wind-data/Public/Projects/Met135/MetData/M5Twr'
 sdate='2022-05-15'#[%Y-%m-%d] start date
 edate='2022-05-22'#[%Y-%m-%d] end date
-storage=os.path.join(cd,'data/nwtc.m5.a0')
+storage=os.path.join(cd,'data/nwtc/nwtc.m5.a0')
 replace=False
 
 zero_datenum=719529#[days] 1970-01-01 in matlab time
@@ -58,19 +58,21 @@ variable_types={'air_temp':'therm',
 #%% Functions
 def extract_data(day,source,storage):
     files=sorted(glob.glob(os.path.join(source,day.strftime('%Y/%m/%d')+'/raw_data/*.mat')))
-    Output=xr.Dataset()
-    filename='nwtc.m5.a0.'+day.strftime('%Y%m%d.%H%M%S')+'.nc'
-    if replace==False and os.path.exists(os.path.join(storage,filename))==True:
-        print(filename+' skipped')
-    else:
-        for f in files:
+    
+    for f in files:
+        time_str = datetime.strptime(os.path.basename(f)[:-4], "%m_%d_%Y_%H_%M_%S_%f").strftime("%Y%m%d.%H%M%S")
+
+        filename=f'nwtc.m5.a0.{time_str}.nc'
+        if replace==False and os.path.exists(os.path.join(storage,filename))==True:
+            print(f'{f} skipped')
+        else:
             Data=xr.Dataset()
             
             #read mat structure
             mat = spio.loadmat(f, struct_as_record=False, squeeze_me=True)
             tnum=(mat['time_UTC'].val-zero_datenum)*24*3600
             time=np.datetime64('1970-01-01T00:00:00')+np.timedelta64(1,'ms')*np.int64(tnum*1000)
-
+    
             #ingest variable
             for v in variables:
                 var=np.zeros((len(time),len(heights[v])))+np.nan
@@ -95,14 +97,10 @@ def extract_data(day,source,storage):
             Data['air_temp_rec']=xr.DataArray(data=T_rec,coords={'time':time,'height_therm':heights['air_temp']},attrs={'units':units[v]})
             
             #output
-            Data=Data.sortby('time')
-            if 'time' in Output.dims:
-                Output=xr.concat([Output,Data],dim='time')
-            else:
-                Output=Data
-            print(f)
+            Data=Data.sortby('time').to_netcdf(os.path.join(storage,filename))
+            print(f'{filename} created')
             
-        Output.to_netcdf(os.path.join(storage,filename))
+        
          
 #%% Initialization
     
