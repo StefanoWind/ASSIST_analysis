@@ -18,7 +18,7 @@ warnings.filterwarnings("ignore")
 #%% Inputs
 source='Y:/Wind-data/Public/Projects/Met135/MetData/M5Twr'
 sdate='2022-05-15'#[%Y-%m-%d] start date
-edate='2022-05-22'#[%Y-%m-%d] end date
+edate='2022-05-16'#[%Y-%m-%d] end date
 storage=os.path.join(cd,'data/nwtc/nwtc.m5.a0')
 replace=False
 
@@ -28,8 +28,9 @@ variables={'air_temp':'Air_Temp_{z}m',
            'press':'Baro_Presr_{z}m',
            'precip':'Precip_TF',
            'u':'Sonic_x_clean_{z}m',
-            'v':'Sonic_y_clean_{z}m',
-            'w':'Sonic_z_clean_{z}m'}
+           'v':'Sonic_y_clean_{z}m',
+           'w':'Sonic_z_clean_{z}m',
+           'T':'Sonic_Temp_clean_{z}m'}
 
 units={'air_temp':'C',
        'dewp_temp':'C',
@@ -37,7 +38,8 @@ units={'air_temp':'C',
        'precip':'unitless',
        'u':'m/s',
        'v':'m/s',
-       'w':'m/s'}
+       'w':'m/s',
+       'T':'K'}
 
 heights={'air_temp':[3,38,87,122],
        'dewp_temp':[3,38,87,122],
@@ -45,7 +47,8 @@ heights={'air_temp':[3,38,87,122],
        'precip':[3],
        'u':[41,61,74,119],
        'v':[41,61,74,119],
-       'w':[41,61,74,119]}
+       'w':[41,61,74,119],
+       'T':[41,61,74,119]}
        
 variable_types={'air_temp':'therm',
        'dewp_temp':'therm',
@@ -53,7 +56,8 @@ variable_types={'air_temp':'therm',
        'precip':'prec',
        'u':'kin',
        'v':'kin',
-       'w':'kin'}
+       'w':'kin',
+       'T':'kin'}
 
 #%% Functions
 def extract_data(day,source,storage):
@@ -66,7 +70,7 @@ def extract_data(day,source,storage):
         if replace==False and os.path.exists(os.path.join(storage,filename))==True:
             print(f'{f} skipped')
         else:
-            Data=xr.Dataset()
+            data=xr.Dataset()
             
             #read mat structure
             mat = spio.loadmat(f, struct_as_record=False, squeeze_me=True)
@@ -84,7 +88,7 @@ def extract_data(day,source,storage):
                         pass
                     i+=1
                 
-                Data[v]=xr.DataArray(data=var,coords={'time':time,f'height_{variable_types[v]}':heights[v]},attrs={'units':units[v]})
+                data[v]=xr.DataArray(data=var,coords={'time':time,f'height_{variable_types[v]}':heights[v]},attrs={'units':units[v]})
                                        
             #reconstruct air temperature
             T_rec=np.zeros((len(time),len(heights['air_temp'])))+np.nan
@@ -94,13 +98,11 @@ def extract_data(day,source,storage):
                 h2=heights['air_temp'][i+1]
                 T_rec[:,i+1]=T_rec[:,i]+mat['DeltaT_{z2}_{z1}m'.format(z2=h2,z1=h1)].val
             
-            Data['air_temp_rec']=xr.DataArray(data=T_rec,coords={'time':time,'height_therm':heights['air_temp']},attrs={'units':units[v]})
+            data['air_temp_rec']=xr.DataArray(data=T_rec,coords={'time':time,'height_therm':heights['air_temp']},attrs={'units':units[v]})
             
             #output
-            Data=Data.sortby('time').to_netcdf(os.path.join(storage,filename))
+            data=data.sortby('time').to_netcdf(os.path.join(storage,filename))
             print(f'{filename} created')
-            
-        
          
 #%% Initialization
     

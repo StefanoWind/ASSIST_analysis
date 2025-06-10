@@ -1,7 +1,6 @@
 import os
 cd=os.path.dirname(__file__)
     
-import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 import warnings
@@ -33,9 +32,10 @@ max_spike=10#[%] maximum percentage of spikes
 max_cons_spike=5#maximum number of consecutive spikes
 max_max_diff_ratio=10#maximum relative difference of signal
 perc_diff=95#[%] percentile to find representative gradient in data
+override=['precip']
 
 #graphics
-date_fmt = mdates.DateFormatter('%H-%M')
+date_fmt = mdates.DateFormatter('%H:%M')
 cmap = cm.get_cmap('viridis')
 
 #%% Functions
@@ -143,24 +143,6 @@ files_sel=files_all[sel_t]
 
 os.makedirs(source.replace('a0','b0'),exist_ok=True)
 
-
-
-# #variable extraction
-# variables=[]
-# heights=[]
-# for c in data_std.columns:
-#     variables.append(re.split(r'(\d+)', c)[0])
-#     try:
-#         heights=np.append(heights,re.split(r'(\d+)', c)[1])
-#     except:
-#         heights=np.append(heights,np.nan)
-        
-# std_z=data_std.median()*0
-# for v in np.unique(variables):
-#     sel=[v==v_i for v_i in variables]
-#     std_z[sel]=np.nanmedian(data_std.median()[sel])
-   
-
 #%% Main
     
 # calculate median 10-min std across all heights
@@ -222,94 +204,89 @@ for f in files_sel:
         data_qc=data_qc.where(excl_spike_all.sum(dim='time')/len(data_qc.time)*100<=max_spike)
         
         #exclude consecutive spikes above threshold
+        variables = [v for v in excl_spike_all.data_vars]  # force evaluation now
         cons_spikes = xr.Dataset({
-                    var: xr.apply_ufunc(
+                    v: xr.apply_ufunc(
                         consecutive,
-                        excl_spike_all[var],
+                        excl_spike_all[v],
                         input_core_dims=[['time']],
                         kwargs={"value": True},
                         vectorize=True,
                         dask='parallelized',
                     )
-                    for var in excl_spike_all.data_vars
+                    for v in variables
                 })
         
         data_qc=data_qc.where(cons_spikes<=max_cons_spike)
     
-        #ramp filter
-        diff=data_qc.differentiate('time')*10**9
-        diff=diff.where(diff!=0)
-        
         #find linear trends (null 2nd derivative)
-        diff_diff=np.abs(diff.differentiate('time'))*10**9
+        diff_bw=data_qc-data_qc.shift(time=-1)
+        diff_fw=data_qc.shift(time=1)-data_qc
+        diff=(np.abs(diff_bw)+np.abs(diff_fw))/2
+        diff_diff=np.abs(diff_fw-diff_bw)*10**9
+        diff_diff=diff_diff.where(diff_fw!=0)
         ramp=(diff_diff<10**-10)
         
         #sum difference where linear trend detected
         data_deramp=data_qc.copy()
-        data_deramp=data_deramp.where(~ramp)
-        diff_merged=np.abs(data_deramp.bfill(dim='time').differentiate('time'))*10**9
-        # for c in data_merged.columns:
-        #     sel=~np.isnan(data_merged[c].values)
-        #     diff_merged[c][sel]=data_merged[c][sel].diff().abs()
-
+        data_deramp=data_deramp.where(~ramp).bfill(dim='time')
+        diff_merged_bw=data_deramp-data_deramp.shift(time=-1)
+        diff_merged_fw=data_deramp.shift(time=1)-data_deramp
+        diff_merged=(np.abs(diff_merged_bw)+np.abs(diff_merged_fw))/2
+        
+        #calculate maximum difference and compare to typical high difference
         max_diff=diff_merged.max(dim='time')
         
         high_diff = xr.Dataset({
-                    var: xr.apply_ufunc(
+                    v: xr.apply_ufunc(
                         np.nanpercentile,
-                        diff[var],
+                        diff[v],
                         input_core_dims=[['time']],
                         kwargs={"q": perc_diff},
                         vectorize=True,
                         dask='parallelized',
                     )
-                    for var in diff.data_vars
+                    for v in variables
                 })
         
-        high_diff=np.nanpercentile(diff,perc_diff,axis=0)
+        #filter out channels with excessive jumps
         max_diff_ratio=max_diff/high_diff
-    
         data_qc=data_qc.where(max_diff_ratio<=max_max_diff_ratio)
     
-        #output
+        #store output
+        for v in override:
+            data_qc[v]=data[v]
         data_qc.to_netcdf(f.replace('a0','b0'))
         
         #plots
         plt.close('all')
-        time_plot=[datetime.utcfromtimestamp(t) for t in data['Timestamp'].values]
-        
-        for v in np.unique(variables):
-            if v!='Timestamp':
-                plt.figure(figsize=(18,8))
-                sel=np.where([v==v_i for v_i in variables])[0]
-                for s,z  in zip(sel,heights[sel]):
-                    ax1=plt.subplot(2,1,1)
-                    ax1.set_facecolor([0,0,0,0.1])
-                    plt.plot(time_plot,data.iloc[:,s].values,'.-',label='$z='+str(z)+'$ m (AGL)',color=cmap(int(z)/120),markersize=2)
-                    plt.ylabel(v[:-1])
-                    plt.grid(True)
-                    plt.title('Raw selected M5 data on '+utl.datestr(data['Timestamp'].values[0],'%Y%m%d'))
-                    plt.gca().xaxis.set_major_formatter(date_fmt)
-                    ax2=plt.subplot(2,1,2)
-                    ax2.set_facecolor([0,0,0,0.1])
-                    plt.plot(time_plot,data_qc.iloc[:,s].values,'.-',label='$z='+str(z)+'$ m (AGL)',color=cmap(int(z)/120),markersize=2)
-                    plt.ylabel(v[:-1])
-    
-                    plt.grid(True)
-                    plt.title('Quality checked')
-                    plt.gca().xaxis.set_major_formatter(date_fmt)
-                plt.tight_layout()
-                plt.legend()
-                
-                plt.savefig(f.replace('a0','b0')[:-4]+'_'+v[:-1]+'_qc.png')
+        date=str(data_qc.time.values[0])[:10]
+        for v in variables:
+            plt.figure(figsize=(18,8))
+            name_height=np.array(data_qc[v].coords)[np.array(data_qc[v].coords)!='time'][0]#identify name of height coord
+            for h in data_qc[name_height]:
+                ax1=plt.subplot(2,1,1)
+                ax1.set_facecolor([0,0,0,0.1])
+                plt.plot(data.time,data[v].sel({name_height:h}),'.-',color=cmap(int(h)/120),markersize=2)
+                plt.ylabel(v)
+                plt.grid(True)
+                plt.title(f'Raw selected M5 data on {date}')
+                plt.gca().xaxis.set_major_formatter(date_fmt)
+                ax2=plt.subplot(2,1,2)
+                ax2.set_facecolor([0,0,0,0.1])
+                plt.plot(data_qc.time,data_qc[v].sel({name_height:h}),'.-',label='$z='+str(h.values)+'$ m',color=cmap(int(h)/120),markersize=2)
+                plt.ylabel(v)
+                plt.grid(True)
+                plt.title('Quality checked')
+                plt.gca().xaxis.set_major_formatter(date_fmt)
+            plt.tight_layout()
+            plt.legend()
+            
+            plt.savefig(f.replace('a0','b0')[:-3]+'.'+v+'.png')
+            plt.close()
                 
         print(f+' done')
 
-    # except Exception as e:
-    #     print('Error at '+f+': '+str(e))
-    #     pass
-    
-                
         
     
 
