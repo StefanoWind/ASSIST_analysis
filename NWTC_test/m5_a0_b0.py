@@ -1,6 +1,6 @@
 import os
 cd=os.path.dirname(__file__)
-    
+import sys
 import numpy as np
 from matplotlib import pyplot as plt
 import warnings
@@ -19,18 +19,24 @@ warnings.filterwarnings('ignore')
 plt.close('all')
 
 #%% Inputs
-source=os.path.join(cd,'data/nwtc/nwtc.m5.a0')
-replace=False
-sdate='2022-01-01'
-edate='2024-01-02'
-
+if len(sys.argv)==1:
+    source=os.path.join(cd,'data/nwtc/nwtc.m5.a0')#location of a0 files
+    replace=False#replace old files?
+    sdate='2022-01-01'#start date
+    edate='2024-01-02'#end date
+else:
+    source=sys.argv[1]
+    replace=sys.argv[2]=="True"
+    sdate=sys.argv[3]
+    edate=sys.argv[4]
+    
 max_nan=20#[%] maximum number of nan in a series
 min_std=0.01#[dimensional] standard deviation of flat signal
 N_despike=10#number of iteration of despiking
 window=7#window of median filter [Brock et al, 1986]
 max_spike=10#[%] maximum percentage of spikes
 max_cons_spike=5#maximum number of consecutive spikes
-max_max_diff_ratio=10#maximum relative difference of signal
+max_max_diff_ratio=5#maximum relative difference of signal
 perc_diff=95#[%] percentile to find representative gradient in data
 override=['precip']
 
@@ -53,54 +59,47 @@ def consecutive(x,value=True):
         return 0
     
 def median_filter(data,window,max_MAD=5,p_value=0.16,N_bin=10):
-    #median despiking [Brock 1986]
-    #data: data frame
-    #window: number of point used for rolling normalization
-    #max_MAD: maximum deviation from median expected
+    """
+    Despiking based on median filter with adaptive threshold from Brock 1986
     
-    #11/01/2022: created
-    #11/04/2022: finalized
-    #11/18/2022: embedded normalization
-    #12/07/2022: added minimum number of points, rolling window centered
-    #08/03/2023: added edge median, finalized
-    #08/29/2023 (v 2): using bin edge instead of center
-    #09/11/2023 (v 3): added uncertianty of histogram, finalized
-    #09/12/2023 (v 4): added data resolution
-    #09/13/2023: finalized
-    
-    from scipy.stats import norm
-    #inputs
-    N_bin_norm=np.array([0.25,0.5,0.75,1])#ratio of max number of bins tested
+    """
 
+    from scipy.stats import norm
+    #additional inputs
+    N_bin_norm=np.array([0.25,0.5,0.75,1])#ratio of max number of bins tested
+    
+    #initialization
+    excl=data==-9999
+ 
     #median deviation
     data_med=xr.Dataset({
-                var: data[var].rolling({'time': window}, center=True)
+                v: data[v].rolling({'time': window}, center=True)
                              .construct('window')
                              .median('window')
-                for var in data.data_vars
+                for v in data.data_vars
             })
     
     MAD=data-data_med
-    
+   
     #loop throuhg each time signal
-    excl=data==-9999
     for v in MAD.data_vars:
         name_height=np.array(MAD[v].coords)[np.array(MAD[v].coords)!='time'][0]#identify name of height coord
         for h in MAD[v][name_height]:
             signal=MAD[v].sel({name_height:h})
+            N=len(signal)
             H_min=-max_MAD
             H_max=max_MAD
             data_res=np.nanmedian(np.diff(np.unique(np.round(signal,10))))#data resolution
             if ~np.isnan(data_res)>0:
                 for n_norm in N_bin_norm:#loop through increasing bin sizes
-                    n=int(2*max_MAD/(data_res*N_bin)*n_norm)#normailized number of bins
+                    n=int(2*max_MAD/(data_res*N_bin)*n_norm)#number of bins to cover a multiple of data_res
                     if n/2==int(n/2):
                         n+=1
                     
                     #build histogram
                     H_y,H_x=np.histogram(signal,bins=n,range=[-max_MAD,max_MAD],density=False)
                     p=H_y/N
-                    U_y=-norm.ppf(p_value)*(N*p*(1-p))**0.5
+                    U_y=-norm.ppf(p_value)*(N*p*(1-p))**0.5#standard uncertainty
                     
                     #find island in left quadrant
                     H_x_left= -np.flip(H_x[:int(n/2)+1])
@@ -148,24 +147,22 @@ os.makedirs(source.replace('a0','b0'),exist_ok=True)
 # calculate median 10-min std across all heights
 data_std=xr.Dataset()
 data_std_list=[]
-time_std=[]
 for f in files_all:
     data = xr.open_dataset(f)
     data_std_list.append(data.std(dim='time'))
-    time_std.append(data.time.mean().values)
    
 data_std = xr.concat(data_std_list, dim='dataset')
-std_z=data_std.std()
+std_z=data_std.median()
 
 #QC files
 for f in files_sel:
-    # try:
+    
     if replace==False and os.path.exists(f.replace('a0','b0'))==True:
         print(f+' skipped')
     else: 
+        
+        #load data
         data = xr.open_dataset(f)
-     
-        N=len(data.time)
         data_qc=data.copy()
     
         #nan ratio
@@ -223,9 +220,10 @@ for f in files_sel:
         diff_bw=data_qc-data_qc.shift(time=-1)
         diff_fw=data_qc.shift(time=1)-data_qc
         diff=(np.abs(diff_bw)+np.abs(diff_fw))/2
-        diff_diff=np.abs(diff_fw-diff_bw)*10**9
-        diff_diff=diff_diff.where(diff_fw!=0)
-        ramp=(diff_diff<10**-10)
+        diff=diff.where(diff>0)
+        diff_diff=np.abs(diff_fw-diff_bw)
+        diff_diff=diff_diff.where(diff>0)
+        ramp=(diff_diff<10**-5)
         
         #sum difference where linear trend detected
         data_deramp=data_qc.copy()
@@ -234,18 +232,11 @@ for f in files_sel:
         diff_merged_fw=data_deramp.shift(time=1)-data_deramp
         diff_merged=(np.abs(diff_merged_bw)+np.abs(diff_merged_fw))/2
         
-        #calculate maximum difference and compare to typical high difference
+        #calculate maximum difference and compare to typical high difference across all heights
         max_diff=diff_merged.max(dim='time')
-        
+             
         high_diff = xr.Dataset({
-                    v: xr.apply_ufunc(
-                        np.nanpercentile,
-                        diff[v],
-                        input_core_dims=[['time']],
-                        kwargs={"q": perc_diff},
-                        vectorize=True,
-                        dask='parallelized',
-                    )
+                    v:  np.nanpercentile(diff[v],perc_diff)
                     for v in variables
                 })
         
