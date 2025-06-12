@@ -22,12 +22,12 @@ warnings.filterwarnings("ignore")
 path_config=os.path.join(cd,'configs/config.yaml')
 source='Y:/Wind-data/Public/Projects/Met135/MetData/M5Twr'
 sdate='2022-05-15'#[%Y-%m-%d] start date
-edate='2022-08-24'#[%Y-%m-%d] end date
+edate='2022-05-16'#[%Y-%m-%d] end date
 storage=os.path.join(cd,'data/nwtc/nwtc.m5.a0')#where to save
 destination='/scratch/sletizia/ASSIST_analysis/NWTC_test/data/nwtc/nwtc.m5.a0'#storage location on Kestrel
 replace=False#replace existing files?
 send=True#send files to server?
-delete=False#delete local files?
+delete=True#delete local files?
 
 zero_datenum=719529#[days] 1970-01-01 in matlab time
 
@@ -155,6 +155,7 @@ if send:
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(config['host'], username=config['username'], password=config['password'])
+    ssh.exec_command(f'mkdir -p {destination}')
 
 #%% Main   
 args = [(days[i],source,storage,config,send,delete,destination) for i in range(len(days))]

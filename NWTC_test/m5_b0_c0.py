@@ -295,7 +295,7 @@ if mode=="serial":
     for day in days:
         process_day(day,source,TILT,config)
 elif mode=="parallel":
-    args = [(day[i],source,TILT,config) for i in range(len(days))]
+    args = [(days[i],source,TILT,config) for i in range(len(days))]
     with Pool() as pool:
         pool.starmap(process_day, args)
 else:
