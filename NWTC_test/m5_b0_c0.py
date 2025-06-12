@@ -90,7 +90,7 @@ def lin_fit(x,y,min_real=2):
     return LF
 
 def process_day(day,source,TILT,config):
-    files=glob.glob(os.path.join(source,f'*{datetime.strftime(day,"%Y%m%d")}*nc'))
+    files=sorted(glob.glob(os.path.join(source,f'*{datetime.strftime(day,"%Y%m%d")}*nc')))
     if len(files)>0:
         output=xr.Dataset()
         filename=f'{os.path.basename(os.path.dirname(source.replace("b0","c0")))}.{datetime.strftime(day,"%Y%m%d")}.000000.nc'
