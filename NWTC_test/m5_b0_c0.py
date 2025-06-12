@@ -12,8 +12,10 @@ from matplotlib import pyplot as plt
 import warnings
 from datetime import datetime, timedelta
 import glob
+from multiprocessing import Pool
 import matplotlib.dates as mdates
 import matplotlib.cm as cm
+import yaml
 import matplotlib
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
@@ -23,16 +25,20 @@ warnings.filterwarnings('ignore')
 plt.close('all')
 
 #%% Inputs
+
+path_config=os.path.join(cd,'configs/config.yaml')
 if len(sys.argv)==1:
     source=os.path.join(cd,'data/nwtc/nwtc.m5.b0')#location of a0 files
     replace=False#replace old files?
     sdate='2022-01-01'#start date
     edate='2024-01-02'#end date
+    mode="serial"
 else:
     source=sys.argv[1]
     replace=sys.argv[2]=="True"
     sdate=sys.argv[3]
     edate=sys.argv[4]
+    mode=sys.argv[5]
     
 source_tilt=os.path.join(cd,'data/20220512.000000-20220809.000000_m5_tilt.csv')#source of tower tilt correction
 
@@ -83,20 +89,7 @@ def lin_fit(x,y,min_real=2):
         LF=[np.nan,np.nan]
     return LF
 
-
-#%% Initialization
-
-#read titl
-TILT=pd.read_csv(source_tilt)
-TILT=TILT.set_index('z [m AGL]')
-
-#days
-start = datetime.strptime(sdate, '%Y-%m-%d')
-end =   datetime.strptime(edate, '%Y-%m-%d')
-days = [start + timedelta(days=i) for i in range((end - start).days + 1)]
-
-#%% Main
-for day in days:
+def process_day(day,source,TILT,config):
     files=glob.glob(os.path.join(source,f'*{datetime.strftime(day,"%Y%m%d")}*nc'))
     if len(files)>0:
         output=xr.Dataset()
@@ -180,10 +173,10 @@ for day in days:
                 #mean
                 data_avg=data.mean(dim='time')
                 data_avail=(~np.isnan(data)).sum(dim='time')/len(data.time)*100
-                data_avg=data_avg.where(data_avail>min_data_avail)
+                data_avg=data_avg.where(data_avail>config['min_data_avail'])
                 
                 #wind direction
-                data_avg['wd']=(270-np.degrees(np.arctan2(data_avg['v'],data_avg['u']))+wd_offset)%360
+                data_avg['wd']=(270-np.degrees(np.arctan2(data_avg['v'],data_avg['u']))+config['wd_offset'])%360
                 
                 #turbulent fluxes
                 data_det=data-data_avg
@@ -203,25 +196,25 @@ for day in days:
                 P_s=data_avg['press'].isel(height_therm=0)*100
                 q_s=0.622*e.isel(height_therm=0)/P_s
                 Tv_s=(data_avg['air_temp_rec'].isel(height_therm=0)+273.15)*(1+0.61*q_s)
-                dP_dz=-g*P_s/(R_a*Tv_s) 
+                dP_dz=-config['g']*P_s/(config['R_a']*Tv_s) 
                 
                 #potential virtual temperature
                 data_avg['press']=(P_s+(data.height_therm-data.height_therm[0])*dP_dz)/100
                 q=0.622*e/(data_avg['press']*100)
                 data_avg['Tv']=(data_avg['air_temp_rec']+273.15)*(1+0.61*q)
-                data_avg['theta_v']= data_avg['Tv']*(P_ref/(data_avg['press']*100))**(R_a/cp)
+                data_avg['theta_v']= data_avg['Tv']*(config['P_ref']/(data_avg['press']*100))**(config['R_a']/config['cp'])
                 
                 #Obukhov length
                 data_avg['u_star']=(data_avg['uw_rot']**2+data_avg['vw_rot']**2)**0.25
                 data_avg['Tv_int']=data_avg['Tv'].interp(height_therm=data_avg.height_kin)
-                data_avg['L']=-data_avg['Tv_int']*data_avg['u_star']**3/(0.41*data_avg['wT_rot'])
+                data_avg['L']=-data_avg['u_star']**3/(config['kappa']*config['g'])*data_avg['Tv_int']/data_avg['wT_rot']
                 
                 #Gradient Richardson
                 data_avg['theta_v_int']=data_avg['theta_v'].interp(height_therm=data_avg.height_kin)
                 data_avg['du_corr_dz']=lin_fit(data_avg.height_kin,data_avg['u_corr'].values)[0]
                 data_avg['dv_corr_dz']=lin_fit(data_avg.height_kin,data_avg['v_corr'].values)[0]
                 data_avg['dtheta_v_dz']=lin_fit(data_avg.height_kin,data_avg['theta_v_int'].values)[0]
-                data_avg['Ri']=g/data_avg['theta_v'].mean()*data_avg['dtheta_v_dz']/(data_avg['du_corr_dz']**2+data_avg['dv_corr_dz']**2)
+                data_avg['Ri']=config['g']/data_avg['theta_v'].mean()*data_avg['dtheta_v_dz']/(data_avg['du_corr_dz']**2+data_avg['dv_corr_dz']**2)
                 
                 #ouput
                 data_avg=data_avg.expand_dims(time=[data.time.mean().values]) 
@@ -281,6 +274,35 @@ for day in days:
             plt.savefig(os.path.join(source.replace("b0","c0"),filename).replace('.nc','.png'))
             plt.close()        
             
+
+#%% Initialization
+
+with open(path_config, 'r') as fid:
+    config = yaml.safe_load(fid)
+
+#read tilt
+TILT=pd.read_csv(source_tilt)
+TILT=TILT.set_index('z [m AGL]')
+
+#days
+start = datetime.strptime(sdate, '%Y-%m-%d')
+end =   datetime.strptime(edate, '%Y-%m-%d')
+days = [start + timedelta(days=i) for i in range((end - start).days + 1)]
+
+#%% Main
+#run processing
+if mode=="serial":
+    for day in days:
+        process_day(day,source,TILT,config)
+elif mode=="parallel":
+    args = [(day[i],source,TILT,config) for i in range(len(days))]
+    with Pool() as pool:
+        pool.starmap(process_day, args)
+else:
+    print('Unknown processing mode')
+    
+
+    
             
             
        
