@@ -6,8 +6,11 @@ import os
 cd=os.path.dirname(__file__)
 import scipy.io as spio
 import matplotlib.pyplot as plt
+import paramiko
+from scp import SCPClient
 import glob
 import xarray as xr
+import yaml
 import numpy as np
 from datetime import datetime, timedelta
 import os
@@ -16,11 +19,15 @@ plt.close('all')
 warnings.filterwarnings("ignore")
 
 #%% Inputs
+path_config=os.path.join(cd,'configs/config.yaml')
 source='Y:/Wind-data/Public/Projects/Met135/MetData/M5Twr'
 sdate='2022-05-15'#[%Y-%m-%d] start date
-edate='2022-05-16'#[%Y-%m-%d] end date
+edate='2022-08-24'#[%Y-%m-%d] end date
 storage=os.path.join(cd,'data/nwtc/nwtc.m5.a0')#where to save
+destination='/scratch/sletizia/ASSIST_analysis/NWTC_test/data/nwtc/nwtc.m5.a0'#storage location on Kestrel
 replace=False#replace existing files?
+send=True#send files to server?
+delete=False#delete local files?
 
 zero_datenum=719529#[days] 1970-01-01 in matlab time
 
@@ -112,19 +119,52 @@ def extract_data(day,source,storage):
             #output
             data=data.sortby('time').to_netcdf(os.path.join(storage,filename))
             print(f'{filename} created')
-         
+            
+            #list remote files
+            if send:
+                stdin, stdout, stderr = ssh.exec_command(f'ls {destination}')
+                transfered=np.array(stdout.read().decode().split('\n'))
+    
+                files=glob.glob(source)
+    
+                #transfer
+                with SCPClient(ssh.get_transport()) as scp:
+                   
+                    if np.sum(filename==transfered)==0:
+                        scp.put(os.path.join(storage,filename), remote_path=destination)  
+                        print(f"{filename} sent")
+                        if delete:
+                            os.remove(os.path.join(storage,filename))
+                            print(f"{filename} deleted locally")
+                    else:
+                        print(f"{filename} skipped")
+
+            
 #%% Initialization
+with open(path_config, 'r') as fid:
+    config = yaml.safe_load(fid)
+    
 os.makedirs(storage,exist_ok=True)
 
 start = datetime.strptime(sdate, '%Y-%m-%d')
 end = datetime.strptime(edate, '%Y-%m-%d')
 days = [start + timedelta(days=i) for i in range((end - start).days + 1)]
 
+#connect to Kestrel
+if send:
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(config['host'], username=config['username'], password=config['password'])
+
 #%% Main   
-args = [(days[i],source,storage) for i in range(len(days))]
+args = [(days[i],source,storage,config,send,delete,destination) for i in range(len(days))]
 
 for d in days:
     extract_data(d, source,storage)
+    
+if send:
+    ssh.close()
+            
 
 
             

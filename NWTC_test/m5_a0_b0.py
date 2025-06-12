@@ -9,6 +9,8 @@ import matplotlib.cm as cm
 from datetime import datetime
 import glob
 import xarray as xr
+from multiprocessing import Pool
+import yaml
 import re
 import matplotlib
 matplotlib.rcParams['font.family'] = 'serif'
@@ -19,26 +21,20 @@ warnings.filterwarnings('ignore')
 plt.close('all')
 
 #%% Inputs
+
+path_config=os.path.join(cd,'configs/config.yaml')
 if len(sys.argv)==1:
     source=os.path.join(cd,'data/nwtc/nwtc.m5.a0')#location of a0 files
     replace=False#replace old files?
     sdate='2022-01-01'#start date
     edate='2024-01-02'#end date
+    mode="serial"
 else:
     source=sys.argv[1]
     replace=sys.argv[2]=="True"
     sdate=sys.argv[3]
     edate=sys.argv[4]
-    
-max_nan=20#[%] maximum number of nan in a series
-min_std=0.01#[dimensional] standard deviation of flat signal
-N_despike=10#number of iteration of despiking
-window=7#window of median filter [Brock et al, 1986]
-max_spike=10#[%] maximum percentage of spikes
-max_cons_spike=5#maximum number of consecutive spikes
-max_max_diff_ratio=5#maximum relative difference of signal
-perc_diff=95#[%] percentile to find representative gradient in data
-override=['precip']
+    mode=sys.argv[5]
 
 #graphics
 date_fmt = mdates.DateFormatter('%H:%M')
@@ -127,58 +123,29 @@ def median_filter(data,window,max_MAD=5,p_value=0.16,N_bin=10):
                 
     return excl
 
-#%% Initialization
-
-#read met data
-files_all = np.array(sorted(glob.glob(os.path.join(source, '*.nc'))))
-t_file=[]
-for f in files_all:
-    match = re.search(r'\d{8}\.\d{6}', f)
-    t=datetime.strptime(match.group(0),'%Y%m%d.%H%M%S')
-    t_file=np.append(t_file,t)
-
-sel_t=(t_file>=datetime.strptime(sdate,'%Y-%m-%d'))*(t_file<datetime.strptime(edate,'%Y-%m-%d'))
-files_sel=files_all[sel_t]
-
-os.makedirs(source.replace('a0','b0'),exist_ok=True)
-
-#%% Main
-    
-# calculate median 10-min std across all heights
-data_std=xr.Dataset()
-data_std_list=[]
-for f in files_all:
-    data = xr.open_dataset(f)
-    data_std_list.append(data.std(dim='time'))
-   
-data_std = xr.concat(data_std_list, dim='dataset')
-std_z=data_std.median()
-
-#QC files
-for f in files_sel:
-    
-    if replace==False and os.path.exists(f.replace('a0','b0'))==True:
+def qc_file(file,config,std_z):
+    if replace==False and os.path.exists(file.replace('a0','b0'))==True:
         print(f+' skipped')
     else: 
         
         #load data
-        data = xr.open_dataset(f)
+        data = xr.open_dataset(file)
         data_qc=data.copy()
     
         #nan ratio
         nans=np.isnan(data_qc).sum(dim='time')
-        data_qc=data.where(nans<=max_nan)
+        data_qc=data.where(nans<=config['max_nan'])
     
         #flat signal
-        data_qc.where(data_qc.std(dim='time')>min_std)
+        data_qc.where(data_qc.std(dim='time')>config['min_std'])
     
         #despiking
         excl_spike_all=xr.Dataset()
-        for i_despike in range(N_despike):
+        for i_despike in range(config['N_despike']):
             
             #identify spikes
             data_qc_norm=(data_qc-data_qc.median(dim='time'))/std_z
-            excl_spike=median_filter(data_qc_norm, window)   
+            excl_spike=median_filter(data_qc_norm, config['window'])   
             
             #exclude and replace
             data_qc=data_qc.where(excl_spike==0)
@@ -198,7 +165,7 @@ for f in files_sel:
         data_qc=data_qc.where(excl_spike.sum(dim='time')==0)
         
         #exclude total spikes above threshold 
-        data_qc=data_qc.where(excl_spike_all.sum(dim='time')/len(data_qc.time)*100<=max_spike)
+        data_qc=data_qc.where(excl_spike_all.sum(dim='time')/len(data_qc.time)*100<=config['max_spike'])
         
         #exclude consecutive spikes above threshold
         variables = [v for v in excl_spike_all.data_vars]  # force evaluation now
@@ -214,7 +181,7 @@ for f in files_sel:
                     for v in variables
                 })
         
-        data_qc=data_qc.where(cons_spikes<=max_cons_spike)
+        data_qc=data_qc.where(cons_spikes<=config['max_cons_spike'])
     
         #find linear trends (null 2nd derivative)
         diff_bw=data_qc-data_qc.shift(time=-1)
@@ -236,18 +203,18 @@ for f in files_sel:
         max_diff=diff_merged.max(dim='time')
              
         high_diff = xr.Dataset({
-                    v:  np.nanpercentile(diff[v],perc_diff)
+                    v:  np.nanpercentile(diff[v],config['perc_diff'])
                     for v in variables
                 })
         
         #filter out channels with excessive jumps
         max_diff_ratio=max_diff/high_diff
-        data_qc=data_qc.where(max_diff_ratio<=max_max_diff_ratio)
+        data_qc=data_qc.where(max_diff_ratio<=config['max_max_diff_ratio'])
     
         #store output
-        for v in override:
+        for v in config['override']:
             data_qc[v]=data[v]
-        data_qc.to_netcdf(f.replace('a0','b0'))
+        data_qc.to_netcdf(file.replace('a0','b0'))
         
         #plots
         plt.close('all')
@@ -273,10 +240,54 @@ for f in files_sel:
             plt.tight_layout()
             plt.legend()
             
-            plt.savefig(f.replace('a0','b0')[:-3]+'.'+v+'.png')
+            plt.savefig(file.replace('a0','b0')[:-3]+'.'+v+'.png')
             plt.close()
                 
         print(f+' done')
+
+#%% Initialization
+
+with open(path_config, 'r') as fid:
+    config = yaml.safe_load(fid)
+    
+#read met data
+files_all = np.array(sorted(glob.glob(os.path.join(source, '*.nc'))))
+t_file=[]
+for f in files_all:
+    match = re.search(r'\d{8}\.\d{6}', f)
+    t=datetime.strptime(match.group(0),'%Y%m%d.%H%M%S')
+    t_file=np.append(t_file,t)
+
+sel_t=(t_file>=datetime.strptime(sdate,'%Y-%m-%d'))*(t_file<datetime.strptime(edate,'%Y-%m-%d'))
+files_sel=files_all[sel_t]
+
+os.makedirs(source.replace('a0','b0'),exist_ok=True)
+
+#%% Main
+    
+# calculate median 10-min std across all heights
+data_std=xr.Dataset()
+data_std_list=[]
+for f in files_all:
+    data = xr.open_dataset(f)
+    data_std_list.append(data.std(dim='time'))
+   
+data_std = xr.concat(data_std_list, dim='dataset')
+std_z=data_std.median()
+
+#run processing
+if mode=="serial":
+    for file in files_sel:
+        qc_file(file,config,std_z)
+elif mode=="parallel":
+    args = [(files_sel[i],config,std_z) for i in range(len(files_sel))]
+    with Pool() as pool:
+        pool.starmap(qc_file, args)
+else:
+    print('Unknown processing mode')
+
+    
+   
 
         
     
