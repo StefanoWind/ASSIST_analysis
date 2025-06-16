@@ -21,8 +21,8 @@ warnings.filterwarnings("ignore")
 #%% Inputs
 path_config=os.path.join(cd,'configs/config.yaml')
 source='Y:/Wind-data/Public/Projects/Met135/MetData/M5Twr'
-sdate='2022-05-15'#[%Y-%m-%d] start date
-edate='2022-05-16'#[%Y-%m-%d] end date
+sdate='2022-07-26'#[%Y-%m-%d] start date
+edate='2022-07-26'#[%Y-%m-%d] end date
 storage=os.path.join(cd,'data/nwtc/nwtc.m5.a0')#where to save
 destination='/scratch/sletizia/ASSIST_analysis/NWTC_test/data/nwtc/nwtc.m5.a0'#storage location on Kestrel
 replace=False#replace existing files?
@@ -162,7 +162,7 @@ args = [(days[i],source,storage,config,send,delete,destination) for i in range(l
 
 for d in days:
     extract_data(d, source,storage)
-    
+
 if send:
     ssh.close()
             

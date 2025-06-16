@@ -5,7 +5,7 @@ Global error stats
 import os
 cd=os.path.dirname(__file__)
 import sys
-sys.path.append('C:/Users/SLETIZIA/OneDrive - NREL/Desktop/PostDoc/utils')
+sys.path.append('C:/Users/SLETIZIA/OneDrive - NREL/Desktop/Main/utils')
 import utils as utl
 import xarray as xr
 import numpy as np
@@ -24,16 +24,19 @@ plt.close('all')
 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm' 
-matplotlib.rcParams['font.size'] = 20
+matplotlib.rcParams['font.size'] = 14
 
 #%% Inputs
-source_trp='C:/Users/SLETIZIA/OneDrive - NREL/Desktop/Main/AWAKEN/ASSIST_analysis/ASSIST_analysis/Met_validation/data/assist-10/*nc'
-source_rsn='data/sgpsondewnpnS6.b1/*cdf'
+source_trp=os.path.join(cd,'data/awaken/sg.assist.z01.c0/*nc')
+source_rsn=os.path.join(cd,'data/awaken/sgpsondewnpnS6.b1/*cdf')
 
 #dataset
 z0_sonde=0#[m] initial height of radiosondes
 unc_rsn=0.15#[C] 1-sigma uncertainty of radiosondes [https://www.arm.gov/publications/tech_reports/handbooks/sonde_handbook.pdf]
 window=1#smoothing window
+
+#stability
+sunrise=12
 
 #qc
 max_gamma=1
@@ -42,6 +45,7 @@ min_lwp=5#[g/m^1]
 
 #graphics
 max_height=2000#[m]
+i_height_sel=[0,7,24]
 
 #%% Initialization
 files_rsn=glob.glob(source_rsn)
@@ -66,7 +70,7 @@ for f in files_rsn:
     #extract profiles
     time=Data_rsn['time'].values
     asc=Data_rsn['asc'].values
-    T=Data_rsn['tdry'].rolling(time=window,center=True).mean().values
+    T=Data_rsn['tdry'].where(Data_rsn['qc_tdry']==0).rolling(time=window,center=True).mean().values
     
     tnum=np.float64(time)/10**9
     height_rsn=cumtrapz(asc,tnum,initial=z0_sonde)
@@ -100,7 +104,13 @@ for f in files_rsn:
 
 unc=(np.nanmean(sigmaT_trp,axis=0)**2+unc_rsn**2)**0.5
 
+hour=np.array([(t-np.datetime64(str(t)[:10]))/np.timedelta64(1,'h') for t in time_rsn])
+
+
+
 #%% Plots
+index=np.arange(len(time_rsn))
+
 plt.close('all')
 fig=plt.figure(figsize=(25,10))
 gs = gridspec.GridSpec(2, 4,height_ratios=[1,10],width_ratios=[3,5,5,5])
@@ -115,8 +125,8 @@ plt.ylabel('Height [m]')
 plt.legend()
 
 ax=fig.add_subplot(gs[1,1])
-cf=plt.contourf(np.arange(len(time_rsn)),height,T_rsn.T,np.arange(15,37,0.5),cmap='hot',extend='both')
-plt.contour(np.arange(len(time_rsn)),height,T_rsn.T,np.arange(15,37,0.5),colors='k',alpha=0.25,linewidths=1)
+cf=plt.contourf(index,height,T_rsn.T,np.arange(15,37,0.5),cmap='hot',extend='both')
+plt.contour(index,height,T_rsn.T,np.arange(15,37,0.5),colors='k',alpha=0.25,linewidths=1)
 plt.xlabel('Sonde launch #')
 ax.set_yticklabels([])
 plt.ylim([0,height[-1]])
@@ -126,8 +136,8 @@ cb=plt.colorbar(cf,cax,orientation='horizontal',ticks=np.arange(15,36,5))
 cb.set_label(label='Temperature (sondes) [$^\circ$C]', labelpad=-100)
 
 ax=fig.add_subplot(gs[1,2])
-cf=plt.contourf(np.arange(len(time_rsn)),height,T_trp.T,np.arange(15,37,0.5),cmap='hot',extend='both')
-plt.contour(np.arange(len(time_rsn)),height,T_trp.T,np.arange(15,37,0.5),colors='k',alpha=0.25,linewidths=1)
+cf=plt.contourf(index,height,T_trp.T,np.arange(15,37,0.5),cmap='hot',extend='both')
+plt.contour(index,height,T_trp.T,np.arange(15,37,0.5),colors='k',alpha=0.25,linewidths=1)
 plt.xlabel('Sonde launch #')
 ax.set_yticklabels([])
 plt.ylim([0,height[-1]])
@@ -137,8 +147,8 @@ cb=plt.colorbar(cf,cax,orientation='horizontal',ticks=np.arange(15,36,5))
 cb.set_label(label='Temperature (TROPoe) [$^\circ$C]', labelpad=-100)
 
 ax=fig.add_subplot(gs[1,3])
-cf=plt.contourf(np.arange(len(time_rsn)),height,T_trp.T-T_rsn.T,np.arange(-5,5.1,0.25),cmap='seismic',extend='both')
-plt.contour(np.arange(len(time_rsn)),height,T_trp.T-T_rsn.T,np.arange(-5,5.1,0.25),colors='k',alpha=0.25,linewidths=1)
+cf=plt.contourf(index,height,T_trp.T-T_rsn.T,np.arange(-5,5.1,0.25),cmap='seismic',extend='both')
+plt.contour(index,height,T_trp.T-T_rsn.T,np.arange(-5,5.1,0.25),colors='k',alpha=0.25,linewidths=1)
 plt.xlabel('Sonde launch #')
 ax.set_yticklabels([])
 plt.ylim([0,height[-1]])
@@ -146,3 +156,28 @@ plt.ylim([0,height[-1]])
 cax=fig.add_subplot(gs[0,3])
 cb=plt.colorbar(cf,cax,orientation='horizontal',ticks=np.arange(-5,5.1,2.5))
 cb.set_label(label='$\Delta T$ (sondes-TROPoe) [$^\circ$C]', labelpad=-100)
+
+
+plt.figure(figsize=(18,8))
+ctr=1
+for i_h in i_height_sel:
+    plt.subplot(len(i_height_sel),1,ctr)
+    plt.plot(index,T_rsn[:,i_h],'-k',label='Sondes')
+    plt.plot(index,T_trp[:,i_h],'-r',label='TROPoe')
+    plt.plot(index[hour<sunrise],T_rsn[hour<sunrise,i_h],'*k',markersize=10,alpha=0.75)
+    plt.plot(index[hour>=sunrise],T_rsn[hour>=sunrise,i_h],'.k',markersize=15,alpha=0.75)
+    plt.plot(index[hour<sunrise],T_trp[hour<sunrise,i_h],'*r',markersize=10,alpha=0.75)
+    plt.plot(index[hour>=sunrise],T_trp[hour>=sunrise,i_h],'.r',markersize=15,alpha=0.75)
+    RMSD=np.mean((T_trp[:,i_h]-T_rsn[:,i_h])**2)**0.5
+    plt.text(1,35,s=r'$z='+str(int(height[i_h]))+'$ m: RMSD$='+str(np.round(RMSD,1))+'^\circ$C',
+             bbox={'alpha':0.25,'color':'g','edgecolor':'k'})
+    ctr+=1
+    plt.xlim([0,len(index)])
+    plt.ylim([12,40])
+    plt.grid()
+    plt.ylabel(r'$T$ [$^\circ$C]')
+    if ctr<len(i_height_sel):
+        ax.set_yticklabels([])
+    
+plt.xlabel('Launch number')
+plt.legend()
