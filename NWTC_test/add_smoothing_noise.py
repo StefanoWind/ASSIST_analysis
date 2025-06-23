@@ -24,7 +24,7 @@ source_config=os.path.join(cd,'configs','config.yaml')
 source='data/awaken/nwtc.assist.tropoe.z03.c0/*nc'
 
 #graphics
-max_z=3000#[m] maximum height ot plot
+max_z=3000#[m] maximum height too plot
 
 #%% Initialization
 #config
