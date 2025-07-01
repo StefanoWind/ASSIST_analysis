@@ -21,8 +21,8 @@ warnings.filterwarnings('ignore')
 plt.close('all')
 
 #%% Inputs
-source=os.path.join(cd,'data/awaken/nwtc.m5.c0/*nc')
-height_sel=74#[m] selected height
+source=os.path.join(cd,'data/nwtc/nwtc.m5.c0/*nc')
+height_sel=119#[m] selected height
 
 stab_class={'S':[0,200],
             'NS':[200,500],
