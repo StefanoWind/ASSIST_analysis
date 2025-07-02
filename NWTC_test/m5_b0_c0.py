@@ -29,9 +29,9 @@ plt.close('all')
 path_config=os.path.join(cd,'configs/config.yaml')
 if len(sys.argv)==1:
     source=os.path.join(cd,'data/nwtc/nwtc.m5.b0')#location of a0 files
-    replace=False#replace old files?
-    sdate='2022-01-01'#start date
-    edate='2024-01-02'#end date
+    replace=True#replace old files?
+    sdate='2022-07-26'#start date
+    edate='2024-07-27'#end date
     mode="serial"
 else:
     source=sys.argv[1]
