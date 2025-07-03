@@ -20,6 +20,8 @@ var_sel=['temperature','waterVapor',
          'sigma_temperature','sigma_waterVapor',
          'vres_temperature','vres_temperature',
          'rmsa','gamma','qc','cbh']
+max_height=200#[m]
+
 if len(sys.argv)==1:
     unit='ASSIST11'
 else:
@@ -34,7 +36,7 @@ with open(source_config, 'r') as fid:
 
 #load tropoe data
 files=glob.glob(os.path.join(cd,config['sources_trp'][unit]))
-Data_trp=xr.open_mfdataset(files).sel(height=slice(0,config['max_height']))
+Data_trp=xr.open_mfdataset(files).sel(height=slice(0,max_height/1000))
 
 #qc tropoe data
 Data_trp['cbh'][(Data_trp['lwp']<config['min_lwp']).compute()]=Data_trp['height'].max()#remove clouds with low lwp
@@ -55,7 +57,7 @@ Data_trp[var_sel].to_netcdf(os.path.join(cd,'data',f'tropoe.{unit}.nc'))
 Data_trp.close()
         
 #load met data
-files=glob.glob(os.path.join(cd,config['source_met_a0']))
+files=glob.glob(os.path.join(cd,config['source_met_b0']))
 
 Data_met=xr.open_mfdataset(files)
 
