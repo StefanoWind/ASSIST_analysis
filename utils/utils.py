@@ -41,3 +41,20 @@ def bootstrap(x,M):
     i=np.random.randint(0,len(x),size=(M,len(x)))
     x_BS=x[i]
     return x_BS
+
+def datenum(string,format="%Y-%m-%d %H:%M:%S.%f"):
+    '''
+    Turns string date into unix timestamp
+    '''
+    from datetime import datetime
+    num=(datetime.strptime(string, format)-datetime(1970, 1, 1)).total_seconds()
+    return num
+
+def datestr(num,format="%Y-%m-%d %H:%M:%S.%f"):
+    '''
+    Turns Unix timestamp into string
+    '''
+    from datetime import datetime
+    string=datetime.utcfromtimestamp(num).strftime(format)
+    return string
+    

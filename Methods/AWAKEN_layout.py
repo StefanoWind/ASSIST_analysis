@@ -19,6 +19,7 @@ plt.close('all')
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 14
+matplotlib.rcParams['savefig.dpi'] = 300
 
 #%% Inputs
 source=os.path.join(cd,'data/20250225_AWAKEN_layout.nc')
@@ -67,11 +68,11 @@ cf=plt.contourf(Topo.x_utm-x_ref,Topo.y_utm-y_ref, Topo.elevation.T,np.arange(29
 ax=plt.gca()
 ct=plt.contour(Topo.x_utm-x_ref,Topo.y_utm-y_ref, Topo.elevation.T,np.arange(290,390,5),colors='k',linewidths=0.5,alpha=0.5)
 for site in sites_sel:
-    plt.plot(Sites.x_utm.sel(site=site)-x_ref,Sites.y_utm.sel(site=site)-y_ref,'sk',markersize=7)
+    plt.plot(Sites.x_utm.sel(site=site)-x_ref,Sites.y_utm.sel(site=site)-y_ref,'sr',markersize=7)
     
-plt.plot(Sites.x_utm.sel(site=site_rad)-x_ref,Sites.y_utm.sel(site=site_rad)-y_ref,'.r',markersize=20)
+plt.plot(Sites.x_utm.sel(site=site_rad)-x_ref,Sites.y_utm.sel(site=site_rad)-y_ref,'.w',markersize=20)
 for site in sites_ceil:
-    plt.plot(Sites.x_utm.sel(site=site)-x_ref,Sites.y_utm.sel(site=site)-y_ref,'^k',markersize=7)
+    plt.plot(Sites.x_utm.sel(site=site)-x_ref,Sites.y_utm.sel(site=site)-y_ref,'^b',markersize=7)
 
 
 for wf in farms_sel:
