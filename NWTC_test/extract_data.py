@@ -68,7 +68,7 @@ dates=np.unique(np.array([f'{os.path.basename(f).split(".")[3]}' for f in files]
 #process one day at a time
 for date in dates:
     files_sel=glob.glob(config['source_met_b0'].replace('*',f'*{date}*'))
-    Data_met=xr.open_mfdataset(files)
+    Data_met=xr.open_mfdataset(files_sel)
     
     if "air_temp_rec" in Data_met.data_vars:
         Data_met=Data_met.rename({"air_temp":"temperature_abs"}).rename({"air_temp_rec":"temperature"})
