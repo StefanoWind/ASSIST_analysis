@@ -25,7 +25,7 @@ max_height=200#[m]
 if len(sys.argv)==1:
     unit='ASSIST11'
 else:
-    unit=sys.argv[0]
+    unit=sys.argv[1]
 
 #%% Initialization
 #config
