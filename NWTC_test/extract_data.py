@@ -35,7 +35,7 @@ with open(source_config, 'r') as fid:
 #%% Main
 
 #load tropoe data
-files=glob.glob(os.path.join(cd,config['sources_trp'][unit]))
+files=glob.glob(config['sources_trp'][unit])
 Data_trp=xr.open_mfdataset(files).sel(height=slice(0,max_height/1000))
 
 #qc tropoe data
@@ -57,7 +57,7 @@ Data_trp[var_sel].to_netcdf(os.path.join(cd,'data',f'tropoe.{unit}.nc'))
 Data_trp.close()
         
 #load met data
-files=glob.glob(os.path.join(cd,config['source_met_b0']))
+files=glob.glob(config['source_met_b0'])
 
 Data_met=xr.open_mfdataset(files)
 
