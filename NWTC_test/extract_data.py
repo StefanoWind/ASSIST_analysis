@@ -8,6 +8,7 @@ import sys
 import numpy as np
 import xarray as xr
 import matplotlib
+from datetime import datetime
 import yaml
 import glob
 matplotlib.rcParams['font.family'] = 'serif'
@@ -55,22 +56,40 @@ Data_trp=Data_trp.assign_coords(height=Data_trp.height*1000+config['height_assis
 
 Data_trp[var_sel].to_netcdf(os.path.join(cd,'data',f'tropoe.{unit}.nc'))
 Data_trp.close()
-        
+
+#time information for interpolation
+time_trp=Data_trp.time.values
+tnum_trp=(time_trp-np.datetime64('1970-01-01T00:00:00'))/np.timedelta64(1,'s')
+
 #load met data
 files=glob.glob(config['source_met_b0'])
+dates=np.unique(np.array([f'{os.path.basename(f).split(".")[3]}' for f in files]))
 
-Data_met=xr.open_mfdataset(files)
-
-if "air_temp_rec" in Data_met.data_vars:
-    Data_met=Data_met.rename({"air_temp":"temperature_abs"}).rename({"air_temp_rec":"temperature"})
+#process one day at a time
+for date in dates:
+    files_sel=glob.glob(config['source_met_b0'].replace('*',f'*{date}*'))
+    Data_met=xr.open_mfdataset(files)
     
-#time interpolation
-tnum_trp=(Data_trp.time-np.datetime64('1970-01-01T00:00:00'))/np.timedelta64(1,'s')
-tnum_met=(Data_met.time-np.datetime64('1970-01-01T00:00:00'))/np.timedelta64(1,'s')
-time_diff=tnum_met.interp(time=Data_trp.time,method='nearest')-tnum_trp
-Data_met=Data_met.interp(time=Data_trp.time)
-Data_met['time_diff']=time_diff
+    if "air_temp_rec" in Data_met.data_vars:
+        Data_met=Data_met.rename({"air_temp":"temperature_abs"}).rename({"air_temp_rec":"temperature"})
+        
+    #time interpolation
+    tnum_met=(Data_met.time-np.datetime64('1970-01-01T00:00:00'))/np.timedelta64(1,'s')
+    time_sel=(tnum_trp>=tnum_met.values[0])*(tnum_trp<=tnum_met.values[-1])
+    time_diff=tnum_met.interp(time=time_trp[time_sel],method='nearest')-tnum_trp[time_sel]
+    Data_met=Data_met.interp(time=time_trp[time_sel])
+    Data_met['time_diff']=time_diff
+    
+    #save temp file
+    Data_met.to_netcdf(os.path.join(cd,'data',f'{date}.met.b0.{unit}.temp.nc'))
+    Data_met.close()
+    print(f"{date} done")
 
+#combine daily files
+files=glob.glob(os.path.join(cd,'data',f'*.met.b0.{unit}.temp.nc'))
+Data_met=xr.open_mfdataset(files)
 Data_met.to_netcdf(os.path.join(cd,'data',f'met.b0.{unit}.nc'))
 Data_met.close()
 
+for f in files:
+    os.remove(f)
