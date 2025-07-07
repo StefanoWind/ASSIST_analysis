@@ -26,8 +26,8 @@ if len(sys.argv)==1:
     path_save=os.path.join(cd,'data/awaken')
     source1='A1'
     source2='H'
-    sdate='20230828'
-    edate='20230829'
+    sdate='20221001'
+    edate='20231101'
 else:
     path_save=sys.argv[1]
     source1=sys.argv[2]

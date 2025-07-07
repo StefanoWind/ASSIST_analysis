@@ -81,8 +81,6 @@ def save_cbh(file,replace=False):
             Output['base_time']=np.int64(basetime)
             Output.attrs['comment']='created on '+datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S')+' by stefano.letizia@nrel.gov'
             
-            
-            
             os.makedirs(dir_save_cbh,exist_ok=True)
             Output.to_netcdf(os.path.join(dir_save_cbh,name_save))
             return f'{os.path.basename(file)} created'

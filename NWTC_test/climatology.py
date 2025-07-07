@@ -15,7 +15,7 @@ from windrose import WindroseAxes
 import matplotlib
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 16
+matplotlib.rcParams['font.size'] = 18
 
 warnings.filterwarnings('ignore')
 plt.close('all')
@@ -85,7 +85,7 @@ data=data.where(data.precip.isel(height_prec=0)==0)#excluding precipitation
 #%% Main
 ws=data.u_rot.sel(height_kin=height_sel).values
 wd=data.wd.sel(height_kin=height_sel).values
-L=data['L'].sel(height_kin=height_sel)
+L=data.L.mean(dim="height_kin")
 
 #stab classes
 data['stab_class']=xr.DataArray(data=['null']*len(data.time),coords={'time':data.time})

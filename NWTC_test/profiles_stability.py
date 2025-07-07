@@ -45,13 +45,21 @@ p_value=0.05
 cmap = plt.get_cmap("coolwarm")
 
 #%% Initialization
+
+#read and align data
 Data_trp=xr.open_dataset(os.path.join(cd,'data',f'tropoe.{unit}.nc'))
 Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.b0.{unit}.nc'))
+
+Data_trp,Data_met=xr.align(Data_trp,Data_met,join="inner")
 
 #read met data
 files=glob.glob(source_stab)
 met=xr.open_mfdataset(files)
-L=met.L.sel(height_kin=height_sel).interp(time=Data_trp.time)
+L=met.L.mean(dim="height_kin").interp(time=Data_trp.time)
+
+#hour
+hour=[(t-np.datetime64(str(t)[:10]))/np.timedelta64(1,'h') for t in Data_met.time.values]
+Data_met['hour']=xr.DataArray(data=hour,coords={'time':Data_met.time.values})
 
 #read wake data
 waked=xr.open_dataset(source_waked)
@@ -70,15 +78,18 @@ for s in stab_classes.keys():
         s='N'
     stab_class=stab_class.where(~sel,other=s)
     
+#remove wakes
 Data_trp['waked']=waked['Site 3.2'].interp(time=Data_trp.time)
 f_trp=Data_trp[var_trp].where(Data_trp['waked'].sum(dim='turbine')==0).sel(height=slice(0,max_height))
-print('WARNING: Fix this double interpolation when possible')
 print(f"{int(np.sum(Data_trp['waked'].sum(dim='turbine')>0))} wake events at Site 3.2 excluded")
 
 Data_met['waked']=waked['M5'].interp(time=Data_met.time)
 f_met=Data_met[var_met].where(Data_met['waked'].sum(dim='turbine')==0).sel(height_therm=slice(0,max_height))
 f_met=f_met.rename({'height_therm':'height'})
 print(f"{int(np.sum(Data_met['waked'].sum(dim='turbine')>0))} wake events at M5 excluded")
+
+#QC
+f_trp=Data_trp.where(f_trp.qc==0)
 
 #stats
 f_trp_avg=np.zeros((len(f_trp.height),len(stab_classes_uni)))
@@ -88,9 +99,9 @@ for i_sc in range(len(stab_classes_uni)):
     sc=stab_classes_uni[i_sc]
     for i_h in range(len(f_trp.height)):
         f_sel=f_trp.isel(height=i_h).where(stab_class==sc).values
-        f_trp_avg[i_h,i_sc]=utl.filt_stat(f_sel,np.nanmean)
-        f_trp_low[i_h,i_sc]=utl.filt_BS_stat(f_sel,np.nanmean,p_value/2*100)
-        f_trp_top[i_h,i_sc]=utl.filt_BS_stat(f_sel,np.nanmean,(1-p_value/2)*100)
+        f_trp_avg[i_h,i_sc]=utl.filt_stat(f_sel,np.nanmedian)
+        f_trp_low[i_h,i_sc]=utl.filt_BS_stat(f_sel,np.nanmedian,p_value/2*100)
+        f_trp_top[i_h,i_sc]=utl.filt_BS_stat(f_sel,np.nanmedian,(1-p_value/2)*100)
 
 trp_stats=xr.Dataset()
 trp_stats['f_avg']=xr.DataArray(data=f_trp_avg,coords={'height':f_trp.height,'_class':stab_classes_uni})
@@ -128,7 +139,7 @@ for i_sc in range(len(stab_classes_uni)):
     plt.fill_betweenx(trp_stats.height,trp_stats.f_low.isel(_class=i_sc),
                                       trp_stats.f_top.isel(_class=i_sc),
                                       color='r',alpha=0.25)
-    plt.plot(-g/cp*f_trp.height+trp_stats.f_avg.isel(_class=i_sc).isel(height=0),trp_stats.height,'--k')
+    plt.plot(-g/cp*f_trp.height+met_stats.f_avg.isel(_class=i_sc).isel(height=0),trp_stats.height,'--k')
     
     plt.xlim([15,25])
     plt.grid()
