@@ -8,7 +8,6 @@ import sys
 import numpy as np
 import xarray as xr
 import matplotlib
-from datetime import datetime
 import yaml
 import glob
 matplotlib.rcParams['font.family'] = 'serif'
@@ -48,9 +47,9 @@ qc_cbh=Data_trp['height']<Data_trp['cbh']
 qc=qc_gamma*qc_rmsa*qc_cbh
 Data_trp['qc']=~qc+0
     
-print(f'{np.round(np.sum(qc_gamma).values/qc_gamma.size*100,1)}% retained after gamma filter')
-print(f'{np.round(np.sum(qc_rmsa).values/qc_rmsa.size*100,1)}% retained after rmsa filter')
-print(f'{np.round(np.sum(qc_cbh).values/qc_cbh.size*100,1)}% retained after cbh filter')
+print(f'{np.round(np.sum(qc_gamma).values/qc_gamma.size*100,1)}% retained after gamma filter', flush=True)
+print(f'{np.round(np.sum(qc_rmsa).values/qc_rmsa.size*100,1)}% retained after rmsa filter', flush=True)
+print(f'{np.round(np.sum(qc_cbh).values/qc_cbh.size*100,1)}% retained after cbh filter', flush=True)
 
 Data_trp=Data_trp.assign_coords(height=Data_trp.height*1000+config['height_assist'])
 
@@ -76,14 +75,17 @@ for date in dates:
     #time interpolation
     tnum_met=(Data_met.time-np.datetime64('1970-01-01T00:00:00'))/np.timedelta64(1,'s')
     time_sel=(tnum_trp>=tnum_met.values[0])*(tnum_trp<=tnum_met.values[-1])
-    time_diff=tnum_met.interp(time=time_trp[time_sel],method='nearest')-tnum_trp[time_sel]
-    Data_met=Data_met.interp(time=time_trp[time_sel])
-    Data_met['time_diff']=time_diff
-    
-    #save temp file
-    Data_met.compute().to_netcdf(os.path.join(cd,'data',f'{date}.met.b0.{unit}.temp.nc'))
-    Data_met.close()
-    print(f"{date} done")
+    if np.sum(time_sel)>0:
+        time_diff=tnum_met.interp(time=time_trp[time_sel],method='nearest')-tnum_trp[time_sel]
+        Data_met=Data_met.interp(time=time_trp[time_sel])
+        Data_met['time_diff']=time_diff
+        
+        #save temp file
+        Data_met.compute().to_netcdf(os.path.join(cd,'data',f'{date}.met.b0.{unit}.temp.nc'))
+        Data_met.close()
+        print(f"{date} done", flush=True)
+    else:
+        print(f"Skipping {date}", flush=True)
 
 #combine daily files
 files=glob.glob(os.path.join(cd,'data',f'*.met.b0.{unit}.temp.nc'))
