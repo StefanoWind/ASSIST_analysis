@@ -90,7 +90,7 @@ for date in dates:
 #combine daily files
 files=glob.glob(os.path.join(cd,'data',f'*.met.b0.{unit}.temp.nc'))
 Data_met=xr.open_mfdataset(files)
-Data_met.to_netcdf(os.path.join(cd,'data',f'met.b0.{unit}.nc'))
+Data_met.compute().to_netcdf(os.path.join(cd,'data',f'met.b0.{unit}.nc'))
 Data_met.close()
 
 for f in files:
