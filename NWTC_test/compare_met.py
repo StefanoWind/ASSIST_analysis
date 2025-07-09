@@ -34,10 +34,9 @@ var_met='temperature'#selected temperature variable in M5 data
 p_value=0.05#for CI
 max_height=200#[km]
 bins_hour=np.arange(25)#[h] hour bins
-max_mad=10#[K] maximum deviation form median over height
-min_T=-10#[C] minimum temperature
 max_f=40#[C]
 min_f=-5#[C]
+max_time_diff=10#[s]
  
 #graphics
 cmap = plt.get_cmap("viridis")
@@ -65,8 +64,9 @@ waked=xr.open_dataset(source_waked)
 cbh=Data_trp.cbh.where(Data_trp.cbh!=np.nanpercentile(Data_trp.cbh,10))
 Data_trp=Data_trp.interp(height=Data_met.height_therm).drop("height")
 
-#QC TROPoe
+#QC
 Data_trp=Data_trp.where(Data_trp.qc==0)
+Data_met=Data_met.where(Data_met.time_diff<=max_time_diff)
 
 #remove wake
 Data_trp['waked']=waked['Site 3.2'].interp(time=Data_trp.time)
@@ -81,7 +81,7 @@ f_met=Data_met[var_met].where(Data_met['waked'].sum(dim='turbine')==0).sel(heigh
 f_met=f_met.rename({'height_therm':'height'})
 print(f"{int(np.sum(Data_met['waked'].sum(dim='turbine')>0))} wake events at M5 excluded")
 
-#remvoe outliers
+#remove outliers
 f_trp=f_trp.where(f_trp>=min_f).where(f_trp<=max_f)
 f_met=f_met.where(f_met>=min_f).where(f_met<=max_f)
     

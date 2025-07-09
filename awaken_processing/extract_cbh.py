@@ -22,9 +22,9 @@ warnings.filterwarnings('ignore')
 #%% Inputs
 
 if len(sys.argv)==1:
-    source_config=os.path.join(cd,'config/config.yaml')
-    sdate='20230601'
-    edate='20230607'
+    source_config=os.path.join(cd,'configs/config.yaml')
+    sdate='20221001'
+    edate='20221002'
     download=True #download new files?
     replace=False#replace existing files
 else:
@@ -68,7 +68,7 @@ def save_cbh(file,replace=False):
             if 'cloud_data' in Data:
                 cbh=np.float64(Data['cloud_data'].values[:,0])
             elif 'first_cbh' in Data:
-                cbh=Data['first_cbh'].values
+                cbh=Data['first_cbh'].where(Data['qc_first_cbh']==0).values
             elif 'dl_cbh' in Data:
                 cbh=Data['dl_cbh'].values
             
