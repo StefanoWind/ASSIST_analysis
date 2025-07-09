@@ -23,9 +23,9 @@ warnings.filterwarnings('ignore')
 
 if len(sys.argv)==1:
     source_config=os.path.join(cd,'configs/config.yaml')
-    sdate='20221001'
+    sdate='20220504'
     edate='20221002'
-    download=True #download new files?
+    download=False #download new files?
     replace=False#replace existing files
 else:
     source_config=sys.argv[1]
