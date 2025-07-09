@@ -34,6 +34,8 @@ else:
     download=sys.argv[4]=="True"
     replace=sys.argv[5]=="True"
 
+max_cbh_dl=9585#[m] cap value of CBH from lidar
+
 #%% Functions
 def dates_from_files(files):
     '''
@@ -70,7 +72,7 @@ def save_cbh(file,replace=False):
             elif 'first_cbh' in Data:
                 cbh=Data['first_cbh'].where(Data['qc_first_cbh']==0).values
             elif 'dl_cbh' in Data:
-                cbh=Data['dl_cbh'].values
+                cbh=Data['dl_cbh'].where(Data['dl_cbh']<max_cbh_dl).values
             
             #save cbh
             Output=xr.Dataset()
