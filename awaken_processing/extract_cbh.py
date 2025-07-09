@@ -68,7 +68,7 @@ def save_cbh(file,replace=False):
         if os.path.isfile(os.path.join(dir_save_cbh,name_save))==False or replace:
             #exract cbh from ceilometer or lidar
             if 'cloud_data' in Data:
-                cbh=np.float64(Data['cloud_data'].values[:,0])
+                cbh=Data['cloud_data'].where(Data['cloud_data']>0).values[:,0]
             elif 'first_cbh' in Data:
                 cbh=Data['first_cbh'].where(Data['qc_first_cbh']==0).values
             elif 'dl_cbh' in Data:
@@ -113,11 +113,11 @@ os.makedirs(config['save_path'],exist_ok=True)
 for c in config['channels']:
     channel=config['channels'][c]
     
+    dir_save=os.path.join(config['save_path'],channel)
+    
     #WDH pipeline
     if 'awaken' in channel:
         #download
-        dir_save=os.path.join(config['save_path'],channel)
-
         if download:
 
             _filter = {
