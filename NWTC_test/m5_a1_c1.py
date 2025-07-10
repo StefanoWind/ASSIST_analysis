@@ -19,6 +19,7 @@ import matplotlib
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 12
+matplotlib.rcParams['savefig.dpi'] = 300
 
 warnings.filterwarnings('ignore')
 plt.close('all')

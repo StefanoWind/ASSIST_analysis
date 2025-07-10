@@ -126,7 +126,6 @@ def extract_data(day,source,storage):
                     if ctr==1:
                         plt.title(f'Raw selected M5 data on {date}')
                     plt.gca().xaxis.set_major_formatter(date_fmt)
-                    plt.gca().xaxis.set_major_formatter(date_fmt)
                 ctr+=1
             plt.tight_layout()
             plt.legend()
