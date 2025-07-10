@@ -11,23 +11,29 @@ from scp import SCPClient
 import glob
 import xarray as xr
 import yaml
+import matplotlib.dates as mdates
 import numpy as np
 from datetime import datetime, timedelta
 import os
 import warnings
+import matplotlib
+matplotlib.rcParams['font.family'] = 'serif'
+matplotlib.rcParams['mathtext.fontset'] = 'cm'
+matplotlib.rcParams['font.size'] = 12
+matplotlib.rcParams['savefig.dpi'] = 300
+warnings.filterwarnings('ignore')
 plt.close('all')
-warnings.filterwarnings("ignore")
 
 #%% Inputs
 path_config=os.path.join(cd,'configs/config.yaml')
 source='Y:/Wind-data/Public/Projects/Met135/MetData/M5Twr'
-sdate='2022-07-26'#[%Y-%m-%d] start date
-edate='2022-07-26'#[%Y-%m-%d] end date
-storage=os.path.join(cd,'data/nwtc/nwtc.m5.a0')#where to save
-destination='/scratch/sletizia/ASSIST_analysis/NWTC_test/data/nwtc/nwtc.m5.a0'#storage location on Kestrel
+sdate='2022-05-15'#[%Y-%m-%d] start date
+edate='2022-08-25'#[%Y-%m-%d] end date
+storage=os.path.join(cd,'data/nwtc/nwtc.m5.a1')#where to save
+destination='/scratch/sletizia/ASSIST_analysis/NWTC_test/data/nwtc/nwtc.m5.a1'#storage location on Kestrel
 replace=False#replace existing files?
-send=True#send files to server?
-delete=True#delete local files?
+send=False#send files to server?
+delete=False#delete local files?
 
 zero_datenum=719529#[days] 1970-01-01 in matlab time
 
@@ -50,7 +56,12 @@ units={'air_temp':'C',
 #sensor heights a.g.l.
 heights=[3,38,87,122]
 
-oversample=20
+oversample=20#overample raito in raw data
+
+#graphics
+date_fmt = mdates.DateFormatter('%H:%M')
+cmap = matplotlib.cm.get_cmap('plasma')
+
        
 
 #%% Functions
@@ -98,6 +109,30 @@ def extract_data(day,source,storage):
             
             data['air_temp_rec']=xr.DataArray(data=T_rec,coords={'time':time,'height':heights},attrs={'units':units[v]})
             
+            
+            
+            #plots
+            date=str(data.time.values[0])[:10]
+            plt.figure(figsize=(18,8))
+            ctr=1
+            for v in data.data_vars:
+                ax=plt.subplot(len( data.data_vars),1,ctr)
+                ax.set_facecolor([0,0,0,0.1])
+                for h in data.height:
+                    
+                    plt.plot(data.time,data[v].sel(height=h),'.-',color=cmap(int(h)/120),markersize=2,label=r'$z='+str(int(h))+'$ m')
+                    plt.ylabel(v)
+                    plt.grid(True)
+                    if ctr==1:
+                        plt.title(f'Raw selected M5 data on {date}')
+                    plt.gca().xaxis.set_major_formatter(date_fmt)
+                    plt.gca().xaxis.set_major_formatter(date_fmt)
+                ctr+=1
+            plt.tight_layout()
+            plt.legend()
+            plt.savefig(os.path.join(storage,filename).replace('nc','png'))
+            plt.close()
+                
             #output
             data=data.sortby('time').to_netcdf(os.path.join(storage,filename))
             print(f'{filename} created')
@@ -114,9 +149,11 @@ def extract_data(day,source,storage):
                    
                     if np.sum(filename==transfered)==0:
                         scp.put(os.path.join(storage,filename), remote_path=destination)  
+                        scp.put(os.path.join(storage,filename).replace('nc','png'), remote_path=destination)  
                         print(f"{filename} sent")
                         if delete:
                             os.remove(os.path.join(storage,filename))
+                            os.remove(os.path.join(storage,filename).replace('nc','png'))
                             print(f"{filename} deleted locally")
                     else:
                         print(f"{filename} skipped")
