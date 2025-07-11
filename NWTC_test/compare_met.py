@@ -15,6 +15,7 @@ import yaml
 from scipy.stats import norm
 from matplotlib.ticker import NullFormatter,ScalarFormatter
 import matplotlib.gridspec as gridspec
+import glob
 import matplotlib.dates as mdates
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
@@ -23,6 +24,8 @@ matplotlib.rcParams['font.size'] = 14
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
 source_waked=os.path.join(cd,'data/turbine_wakes.nc')
+source_met_sta=os.path.join(cd,'data/nwtc/nwtc.m5.c0/*nc')#source of met stats
+
 #user
 unit='ASSIST11'#assist id
 
@@ -57,6 +60,10 @@ Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.b0.{unit}.nc'))
 Data_trp,Data_met=xr.align(Data_trp,Data_met,join="inner")
 
 waked=xr.open_dataset(source_waked)
+
+files=glob.glob(source_met_sta)
+Data_met_sta=xr.open_mfdataset(files)
+
 
 #%% Main
 
@@ -95,6 +102,31 @@ diff=f_trp-f_met
 #hourly stats
 tnum=np.float64(time)/10**9
 hour=(tnum-np.floor(tnum/(3600*24))*3600*24)/3600
+
+#feature importance
+
+#preconditioning
+cbh=Data_trp.cbh.sel(height_therm=3).values
+cbh[cbh==np.nanpercentile(cbh, 10)]=0
+cbh[np.isnan(cbh)]=0
+
+Ri=Data_met_sta.Ri.interp(time=Data_trp.time)
+logRi=np.log10(Ri.values)*np.sign(Ri.values)
+
+ws=Data_met_sta.u_rot.sel(height_kin=119).interp(time=Data_trp.time)
+
+wd=Data_met_sta.wd.sel(height_kin=119).interp(time=Data_trp.time)
+
+X=np.array([cbh,hour,logRi,ws,wd]).T
+
+importance={}
+importance_std={}
+for h in height:
+    y=np.abs(diff.sel(height=122).values)
+    
+    reals=~np.isnan(np.sum(X,axis=1)+y)
+    
+    importance[h],importance_std[h],y_pred,test_mae,train_mae,best_params=utl.RF_feature_selector(X[reals,:],y[reals])
 
 #%% Plots
 

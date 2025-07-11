@@ -32,8 +32,8 @@ edate='2022-08-25'#[%Y-%m-%d] end date
 storage=os.path.join(cd,'data/nwtc/nwtc.m5.a1')#where to save
 destination='/scratch/sletizia/ASSIST_analysis/NWTC_test/data/nwtc/nwtc.m5.a1'#storage location on Kestrel
 replace=False#replace existing files?
-send=False#send files to server?
-delete=False#delete local files?
+send=True#send files to server?
+delete=True#delete local files?
 
 zero_datenum=719529#[days] 1970-01-01 in matlab time
 
