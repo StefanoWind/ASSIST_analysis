@@ -5,8 +5,6 @@ Checking prior bias based on retrieval example following Rogers 2000 but for a g
 import os
 cd=os.path.dirname(__file__)
 import sys
-sys.path.append('C:/Users/SLETIZIA/OneDrive - NREL/Desktop/Main/utils')
-import utils as utl
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib
@@ -32,7 +30,7 @@ dT_dz_prof=[np.nan,-6.5,0,1,2.8,0,-2.8,-2]#[K]
 DT=10#[K] amplitude of temperarature oscillation
 max_z_DT=3#[m] maximum height at which the oscillation occurs
 Nt=24#number of time steps
-exp=1#exponent of time 
+exp=0#exponent of time 
 
 sigma_e=0.5#[K] noise stdev
 sigma_a_rand=2.5#[K] prior stdev
@@ -40,7 +38,6 @@ beta=np.exp(-0.05)#coefficient of decay of correlation
 
 #stats
 L_mc=10000#MC samples
-
 
 #%% Initalizations
 #generate temperature profile
