@@ -28,6 +28,7 @@ source_met_sta=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')#source of met stats
 
 #user
 unit='ASSIST11'#assist id
+sel_height=87
 
 #user
 var_trp='temperature'
@@ -40,13 +41,15 @@ bins_hour=np.arange(25)#[h] hour bins
 max_f=40#[C]
 min_f=-5#[C]
 max_time_diff=10#[s]
+perc_lim=[1,99]
  
 #graphics
 cmap = plt.get_cmap("viridis")
 zooms=[['2022-05-19','2022-05-21'],
        ['2022-07-23','2022-07-27'],
        ['2022-08-08','2022-08-13']]
-max_cbh=2000
+
+rf_vars=['CBH','Ri','Wind speed','Wind direction']
 
 #%% Initialization
 #config
@@ -63,6 +66,9 @@ waked=xr.open_dataset(source_waked)
 
 files=glob.glob(source_met_sta)
 Data_met_sta=xr.open_mfdataset(files)
+
+importance={}
+importance_std={}
 
 #%% Main
 
@@ -102,35 +108,53 @@ hour=(tnum-np.floor(tnum/(3600*24))*3600*24)/3600
 #feature importance
 
 #preconditioning
-raise BaseException()
 Ri=Data_met_sta.Ri_3_122.interp(time=Data_trp.time)
 logRi=np.log10(np.abs(Ri.values)+1)*np.sign(Ri.values)
 
-ws=Data_met_sta.ws.sel(height=87).interp(time=Data_trp.time)
+ws=Data_met_sta.ws.sel(height=sel_height).interp(time=Data_trp.time).values
 
-wd=Data_met_sta.wd.sel(height=87).interp(time=Data_trp.time)
+wd=Data_met_sta.wd.sel(height=sel_height).interp(time=Data_trp.time).values
 
-ti=Data_met_sta.ws.sel(height=87).interp(time=Data_trp.time)
+# logti=np.log10(Data_met_sta.ws_std.sel(height=sel_height).interp(time=Data_trp.time).values/(ws+10**-10)*100)
 
-X=np.array([cbh.values,logRi,ws,wd]).T
+X=np.array([utl.perc_filt(cbh.values,perc_lim),
+            utl.perc_filt(logRi,perc_lim),
+            utl.perc_filt(ws,perc_lim),
+            utl.perc_filt(wd,perc_lim)]).T
 
-importance_sig={}
-importance_sig_std={}
+#importance for signed error
+plt.figure(figsize=(18,8))
+
+i_h=0
 for h in height:
-    y=diff.sel(height=h).values
+    y=utl.perc_filt(diff.sel(height=h).values,perc_lim)
     reals=~np.isnan(np.sum(X,axis=1)+y)
-    importance_sig[h],importance_sig_std[h],y_pred,test_mae,train_mae,best_params=utl.RF_feature_selector(X[reals,:],y[reals])
+    importance[h],importance_std[h],y_pred,test_mae,train_mae,best_params=utl.RF_feature_selector(X[reals,:],y[reals])
     
-importance_abs={}
-importance_abs_std={}
-for h in height:
-    y=np.abs(diff.sel(height=h).values)
-    reals=~np.isnan(np.sum(X,axis=1)+y)
-    importance_abs[h],importance_abs_std[h],y_pred,test_mae,train_mae,best_params=utl.RF_feature_selector(X[reals,:],y[reals])
+    for i_x in range(len(rf_vars)):
+        ax=plt.subplot(len(height), len(rf_vars),i_h*len(rf_vars)+i_x+1)
+        plt.plot(X[:,i_x],y,'.k',alpha=0.05)
+        if i_x==0:
+            plt.ylabel(r'$\Delta T$ [$^\circ$C]'+'\n ($z='+str(h)+r'$ m)')
+        else:
+            ax.set_yticklabels([])
+        if i_h==len(height)-1:
+            plt.xlabel(rf_vars[i_x])
+        else:
+            ax.set_xticklabels([])
+        plt.ylim([-3,3])
+        plt.grid()
+    i_h+=1
+
+# #importance for absolute error
+# importance_abs={}
+# importance_abs_std={}
+# for h in height:
+#     y=np.abs(diff.sel(height=h).values)
+#     reals=~np.isnan(np.sum(X,axis=1)+y)
+#     importance_abs[h],importance_abs_std[h],y_pred,test_mae,train_mae,best_params=utl.RF_feature_selector(X[reals,:],y[reals])
 
 #%% Plots
-
-plt.close('all')
 
 #time series of T
 fig=plt.figure(figsize=(18,10))
@@ -259,5 +283,17 @@ for i_h in range(len(height)):
 plt.legend(draggable=True)
         
     
+#importance
+plt.figure(figsize=(14,4))
+cmap=matplotlib.cm.get_cmap('plasma')
+colors = [cmap(i) for i in np.linspace(0,1,len(height))]
+ctr=0
+for h in height:
+    plt.bar(np.arange(len(rf_vars))+ctr/len(height)/2,importance[h],color=colors[ctr],width=0.1,yerr=importance_std[h],label=r'$z='+str(h)+r"$ m",capsize=5,linewidth=2)
+    ctr+=1
 
+plt.xticks(np.arange(len(rf_vars))+(len(height)-1)/len(height)/4,labels=rf_vars)
+plt.grid()
+plt.ylabel('Feauture importance')
+plt.legend()
 

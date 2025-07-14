@@ -8,6 +8,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import linregress
 
+def perc_filt(x,perc_lim=[5,95]):
+    x_filt=x.copy()
+    lb=np.nanpercentile(x_filt,perc_lim[0])
+    ub=np.nanpercentile(x_filt,perc_lim[1])
+    x_filt[(x_filt<lb) + (x_filt>ub)]=np.nan
+    return x_filt
+
 def filt_stat(x,func,perc_lim=[5,95]):
     '''
     Statistic with percentile filter
