@@ -22,7 +22,7 @@ matplotlib.rcParams['font.size'] = 14
 criterion='Ri'
 
 #dataset
-source_stab=os.path.join(cd,'data/nwtc/nwtc.m5.c0/*nc')#source of met stats
+source_stab=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')#source of met stats
 source_waked=os.path.join(cd,'data/turbine_wakes.nc')
 height_sel=119#[m]
 max_height=200#[m]
@@ -73,8 +73,10 @@ Data_met=Data_met.where(Data_met.time_diff<=max_time_diff)
 #read met data
 files=glob.glob(source_stab)
 met=xr.open_mfdataset(files)
-L=met.L.mean(dim="height_kin").interp(time=Data_trp.time)
-Ri=met.Ri.interp(time=Data_trp.time)
+if criterion=='L':
+    L=met.L.mean(dim="height_kin").interp(time=Data_trp.time)
+elif criterion=='Ri':
+    Ri=met.Ri_3_122.interp(time=Data_trp.time)
 
 #hour
 hour=[(t-np.datetime64(str(t)[:10]))/np.timedelta64(1,'h') for t in Data_met.time.values]
@@ -89,7 +91,7 @@ colors=[cmap(val) for val in np.linspace(0, 1, len(stab_classes_uni))]
 #%% Main
 
 #stability class
-stab_class=xr.DataArray(data=['null']*len(L.time),coords={'time':L.time})
+stab_class=xr.DataArray(data=['null']*len(Data_trp.time),coords={'time':Data_trp.time})
 
 for s in stab_classes.keys():
     if criterion=='L':

@@ -24,7 +24,7 @@ matplotlib.rcParams['font.size'] = 14
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
 source_waked=os.path.join(cd,'data/turbine_wakes.nc')
-source_met_sta=os.path.join(cd,'data/nwtc/nwtc.m5.c0/*nc')#source of met stats
+source_met_sta=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')#source of met stats
 
 #user
 unit='ASSIST11'#assist id
@@ -44,8 +44,8 @@ max_time_diff=10#[s]
 #graphics
 cmap = plt.get_cmap("viridis")
 zooms=[['2022-05-19','2022-05-21'],
-      ['2022-07-23','2022-07-27'],
-      ['2022-08-08','2022-08-13']]
+       ['2022-07-23','2022-07-27'],
+       ['2022-08-08','2022-08-13']]
 max_cbh=2000
 
 #%% Initialization
@@ -55,21 +55,20 @@ with open(source_config, 'r') as fid:
     
 #read and align data
 Data_trp=xr.open_dataset(os.path.join(cd,'data',f'tropoe.{unit}.nc'))
-Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.b0.{unit}.nc'))
+Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.a1.{unit}.nc'))
 
-Data_trp,Data_met=xr.align(Data_trp,Data_met,join="inner")
+Data_trp,Data_met=xr.align(Data_trp,Data_met,join="inner",exclude=["height"])
 
 waked=xr.open_dataset(source_waked)
 
 files=glob.glob(source_met_sta)
 Data_met_sta=xr.open_mfdataset(files)
 
-
 #%% Main
 
 #interpolation
 cbh=Data_trp.cbh.where(Data_trp.cbh!=np.nanpercentile(Data_trp.cbh,10))
-Data_trp=Data_trp.interp(height=Data_met.height_therm).drop("height")
+Data_trp=Data_trp.interp(height=Data_met.height)
 
 #QC
 Data_trp=Data_trp.where(Data_trp.qc==0)
@@ -77,15 +76,12 @@ Data_met=Data_met.where(Data_met.time_diff<=max_time_diff)
 
 #remove wake
 Data_trp['waked']=waked['Site 3.2'].interp(time=Data_trp.time)
-f_trp=Data_trp[var_trp].where(Data_trp['waked'].sum(dim='turbine')==0).sel(height_therm=slice(0,max_height))
-f_trp=f_trp.rename({'height_therm':'height'})
-sigma_trp=Data_trp[f"sigma_{var_trp}"].where(Data_trp['waked'].sum(dim='turbine')==0).sel(height_therm=slice(0,max_height))
-sigma_trp=sigma_trp.rename({'height_therm':'height'})
+f_trp=Data_trp[var_trp].where(Data_trp['waked'].sum(dim='turbine')==0).sel(height=slice(0,max_height))
+sigma_trp=Data_trp[f"sigma_{var_trp}"].where(Data_trp['waked'].sum(dim='turbine')==0).sel(height=slice(0,max_height))
 print(f"{int(np.sum(Data_trp['waked'].sum(dim='turbine')>0))} wake events at Site 3.2 excluded")
 
 Data_met['waked']=waked['M5'].interp(time=Data_met.time)
-f_met=Data_met[var_met].where(Data_met['waked'].sum(dim='turbine')==0).sel(height_therm=slice(0,max_height))
-f_met=f_met.rename({'height_therm':'height'})
+f_met=Data_met[var_met].where(Data_met['waked'].sum(dim='turbine')==0).sel(height=slice(0,max_height))
 print(f"{int(np.sum(Data_met['waked'].sum(dim='turbine')>0))} wake events at M5 excluded")
 
 #remove outliers
@@ -93,7 +89,7 @@ f_trp=f_trp.where(f_trp>=min_f).where(f_trp<=max_f)
 f_met=f_met.where(f_met>=min_f).where(f_met<=max_f)
     
 #extract coords
-height=Data_met.height_therm.values
+height=Data_met.height.values
 time=Data_met.time.values
 
 #T difference
@@ -106,27 +102,29 @@ hour=(tnum-np.floor(tnum/(3600*24))*3600*24)/3600
 #feature importance
 
 #preconditioning
-cbh=Data_trp.cbh.sel(height_therm=3).values
-cbh[cbh==np.nanpercentile(cbh, 10)]=0
-cbh[np.isnan(cbh)]=0
+raise BaseException()
+Ri=Data_met_sta.Ri_3_122.interp(time=Data_trp.time)
+logRi=np.log10(np.abs(Ri.values)+1)*np.sign(Ri.values)
 
-Ri=Data_met_sta.Ri.interp(time=Data_trp.time)
-logRi=np.log10(Ri.values)*np.sign(Ri.values)
+ws=Data_met_sta.ws.sel(height=87).interp(time=Data_trp.time)
 
-ws=Data_met_sta.u_rot.sel(height_kin=119).interp(time=Data_trp.time)
+wd=Data_met_sta.wd.sel(height=87).interp(time=Data_trp.time)
 
-wd=Data_met_sta.wd.sel(height_kin=119).interp(time=Data_trp.time)
+X=np.array([cbh.values,logRi,ws,wd]).T
 
-X=np.array([cbh,hour,logRi,ws,wd]).T
-
-importance={}
-importance_std={}
+importance_sig={}
+importance_sig_std={}
 for h in height:
-    y=np.abs(diff.sel(height=122).values)
-    
+    y=diff.sel(height=h).values
     reals=~np.isnan(np.sum(X,axis=1)+y)
+    importance_sig[h],importance_sig_std[h],y_pred,test_mae,train_mae,best_params=utl.RF_feature_selector(X[reals,:],y[reals])
     
-    importance[h],importance_std[h],y_pred,test_mae,train_mae,best_params=utl.RF_feature_selector(X[reals,:],y[reals])
+importance_abs={}
+importance_abs_std={}
+for h in height:
+    y=np.abs(diff.sel(height=h).values)
+    reals=~np.isnan(np.sum(X,axis=1)+y)
+    importance_abs[h],importance_abs_std[h],y_pred,test_mae,train_mae,best_params=utl.RF_feature_selector(X[reals,:],y[reals])
 
 #%% Plots
 
@@ -178,7 +176,7 @@ for i_h in range(len(height)):
         t1=np.datetime64(zoom[0]+'T00:00:00')
         t2=np.datetime64(zoom[1]+'T00:00:00')
         sel=(time>=t1)*(time<=t2)
-        precip=Data_met.precip.values.squeeze()>0
+        precip=Data_met.precip.values[:,0]>0
        
         for t in time[sel*precip]:
             plt.plot([t,t],[-5,35],'b',alpha=0.25)

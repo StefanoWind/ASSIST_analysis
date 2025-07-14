@@ -85,10 +85,16 @@ def process_day(day,source,config):
             for f in files:
                 data=xr.open_dataset(f)
             
+                #data availability
+                data_avail=(~np.isnan(data)).sum(dim='time')/len(data.time)*100
+                
                 #mean
                 data_avg=data.mean(dim='time')
-                data_avail=(~np.isnan(data)).sum(dim='time')/len(data.time)*100
                 data_avg=data_avg.where(data_avail>config['min_data_avail'])
+                
+                #std
+                data_std=data.std(dim='time')
+                data_std=data_std.where(data_avail>config['min_data_avail'])
                 
                 #pressure gradient
                 e=vapor_pressure(data_avg['dewp_temp'])
