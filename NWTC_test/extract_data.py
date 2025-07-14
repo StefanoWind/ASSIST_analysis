@@ -20,7 +20,6 @@ var_sel=['temperature','waterVapor',
          'sigma_temperature','sigma_waterVapor',
          'vres_temperature','vres_temperature',
          'rmsa','gamma','qc','cbh']
-max_height=200#[m]
 
 if len(sys.argv)==1:
     unit='ASSIST11'
@@ -36,7 +35,7 @@ with open(source_config, 'r') as fid:
 
 #load tropoe data
 files=glob.glob(config['sources_trp'][unit])
-Data_trp=xr.open_mfdataset(files).sel(height=slice(0,max_height/1000))
+Data_trp=xr.open_mfdataset(files)
 
 #qc tropoe data
 Data_trp['cbh'][(Data_trp['lwp']<config['min_lwp']).compute()]=Data_trp['height'].max()#remove clouds with low lwp
@@ -61,12 +60,12 @@ time_trp=Data_trp.time.values
 tnum_trp=(time_trp-np.datetime64('1970-01-01T00:00:00'))/np.timedelta64(1,'s')
 
 #load met data
-files=glob.glob(config['source_met_b0'])
+files=glob.glob(config['source_met_a1'])
 dates=np.unique(np.array([f'{os.path.basename(f).split(".")[3]}' for f in files]))
 
 #process one day at a time
 for date in dates:
-    files_sel=glob.glob(config['source_met_b0'].replace('*',f'*{date}*'))
+    files_sel=glob.glob(config['source_met_a1'].replace('*',f'*{date}*'))
     Data_met=xr.open_mfdataset(files_sel)
     
     if "air_temp_rec" in Data_met.data_vars:
@@ -81,16 +80,16 @@ for date in dates:
         Data_met['time_diff']=time_diff
         
         #save temp file
-        Data_met.compute().to_netcdf(os.path.join(cd,'data',f'{date}.met.b0.{unit}.temp.nc'))
+        Data_met.compute().to_netcdf(os.path.join(cd,'data',f'{date}.met.a1.{unit}.temp.nc'))
         Data_met.close()
         print(f"{date} done", flush=True)
     else:
         print(f"Skipping {date}", flush=True)
 
 #combine daily files
-files=glob.glob(os.path.join(cd,'data',f'*.met.b0.{unit}.temp.nc'))
+files=glob.glob(os.path.join(cd,'data',f'*.met.a1.{unit}.temp.nc'))
 Data_met=xr.open_mfdataset(files)
-Data_met.compute().to_netcdf(os.path.join(cd,'data',f'met.b0.{unit}.nc'))
+Data_met.compute().to_netcdf(os.path.join(cd,'data',f'met.a1.{unit}.nc'))
 Data_met.close()
 
 for f in files:

@@ -17,24 +17,17 @@ matplotlib.rcParams['font.size'] = 14
 
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
+source=os.path.join(cd,'data/prior/Xa_Sa_datafile.nwtc.{unit}.55_levels.month_{month:02}.cdf')
 
-#dataset
-sources_trp={'ASSIST10':'data/awaken/nwtc.assist.tropoe.z01.c0/*nc',
-             'ASSIST11':'data/awaken/nwtc.assist.tropoe.z02.c0/*nc',
-             'ASSIST12':'data/awaken/nwtc.assist.tropoe.z03.c0/*nc'}
-unit='ASSIST10'
-
-source_met=os.path.join(cd,'data/prior/Xa_Sa_datafile.nwtc.55_levels.month_{month:02}.cdf')
-
-#stats
-max_z_extr=1000#[m] max height at which prior difference goes to 0
+#user
+unit='ASSIST11'
 
 #%% Initialization
 #config
 with open(source_config, 'r') as fid:
     config = yaml.safe_load(fid)
     
-files=glob.glob(os.path.join(cd,sources_trp[unit]))
+files=glob.glob(os.path.join(cd,config['sources_trp'][unit]))
 
 #%% Main
 for f in files:
@@ -48,34 +41,33 @@ for f in files:
     Nz=len(data_trp.height)
     
     #load met prior data
-    data_met=xr.open_dataset(glob.glob(source_met.format(month=month))[0]).interp(height=height)
+    data=xr.open_dataset(source.format(month=month,unit=unit)).interp(height=height)
     
     #calculate prior bias
     xa=data_trp.Xa[:Nz].rename({'arb_dim1':'height'}).assign_coords({'height':height})
     
+    #blend met and TROPoe hourly mean
+    data['mean_temperature_hourly']=data.mean_temperature_hourly_met.copy()
+    missing=data.mean_temperature_hourly==0
+    data['mean_temperature_hourly']=data.mean_temperature_hourly.where(~missing,data.mean_temperature_hourly_trp)
+    
     #cycle hour
-    hour_met=np.concatenate([[data_met.hour.values[-1]-24],
-                             data_met.hour.values,
-                            [data_met.hour.values[0]+24]])
-        
-    xa_met=np.zeros((len(data_met.height),len(hour_met)))
-    xa_met[:,0]=data_met.mean_temperature_hourly.values[:,-1]
-    xa_met[:,1:-1]=data_met.mean_temperature_hourly.values
-    xa_met[:,-1]=data_met.mean_temperature_hourly.values[:,0]
+    hour_circle=np.concatenate([[data.hour.values[-1]-24],
+                                 data.hour.values,
+                                [data.hour.values[0]+24]])
     
-    #extend vertically
-    xa_met[0,:]=xa_met[1,:]-(xa_met[2,:]-xa_met[1,:])/(height[2]-height[1])*(height[1]-height[0])
-    data_met['Xa']=xr.DataArray(data=xa_met,coords={'height':height,'hour_ext':hour_met})
+    
+    xa_met=np.zeros((len(data.height),len(hour_circle)))
+    xa_met[:,0]=data.mean_temperature_hourly.values[:,-1]
+    xa_met[:,1:-1]=data.mean_temperature_hourly.values
+    xa_met[:,-1]=data.mean_temperature_hourly.values[:,0]
+    
+    data['Xa']=xr.DataArray(data=xa_met,coords={'height':height,'hour_ext':hour_circle})
 
-    #calculate difference
-    xa_int=data_met.Xa.interp(hour_ext=hour)
-    dxa=(xa_int-xa).where(xa.height<max_z_extr,0).values
-    
-    #taper difference to 0
-    i_h1=np.where(data_met.Xa.mean(dim='hour_ext')!=0)[0][-1]
-    i_h2=np.where(xa.height>max_z_extr)[0][1]
-    for i_t in range(len(hour)):
-        dxa[i_h1+1:i_h2,i_t]=dxa[i_h1,i_t]-dxa[i_h1,i_t]*(height[i_h1+1:i_h2]-height[i_h1])/(height[i_h2]-height[i_h1])
+    #calculatye prior bias
+    xa_int=data.Xa.interp(hour_ext=hour)
+    xa_int=xa_int.where(xa_int!=0)
+    dxa=(xa_int-xa).values
     
     #calculate prior bias
     I=np.eye(len(height))
@@ -110,6 +102,8 @@ for f in files:
     plt.grid()
     plt.colorbar(label='$\Delta T$ [$^\circ$C]')
     plt.savefig(f.replace('c0','c2').replace('.nc','.bias.png'))
+    
+    plt.close()
 
     
   
