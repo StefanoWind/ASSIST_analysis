@@ -95,6 +95,8 @@ def process_day(day,source,config):
                 #std
                 data_std=data.std(dim='time')
                 data_std=data_std.where(data_avail>config['min_data_avail'])
+                for v in data_std.data_vars:
+                    data_avg[v+'_std']=data_std[v]
                 
                 #pressure gradient
                 e=vapor_pressure(data_avg['dewp_temp'])
@@ -129,7 +131,6 @@ def process_day(day,source,config):
                 else:
                     output=data_avg
                 print(f'{f} done')
-                
  
             #save output
             os.makedirs(source.replace("a1","c1"),exist_ok=True)

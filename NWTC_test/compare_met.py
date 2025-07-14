@@ -110,6 +110,8 @@ ws=Data_met_sta.ws.sel(height=87).interp(time=Data_trp.time)
 
 wd=Data_met_sta.wd.sel(height=87).interp(time=Data_trp.time)
 
+ti=Data_met_sta.ws.sel(height=87).interp(time=Data_trp.time)
+
 X=np.array([cbh.values,logRi,ws,wd]).T
 
 importance_sig={}
