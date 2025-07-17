@@ -27,8 +27,8 @@ plt.close('all')
 #%% Inputs
 path_config=os.path.join(cd,'configs/config.yaml')
 source='Y:/Wind-data/Public/Projects/Met135/MetData/M5Twr'
-sdate='2022-08-23' #[%Y-%m-%d] start date
-edate='2022-08-25'#[%Y-%m-%d] end date
+sdate='2022-04-22' #[%Y-%m-%d] start date
+edate='2022-05-11'#[%Y-%m-%d] end date
 storage=os.path.join(cd,'data/nwtc/nwtc.m5.a1')#where to save
 destination='/scratch/sletizia/ASSIST_analysis/NWTC_test/data/nwtc/nwtc.m5.a1'#storage location on Kestrel
 replace=False#replace existing files?

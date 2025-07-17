@@ -235,7 +235,7 @@ for i_h in range(len(height)):
                 ax.set_yticklabels([])
         
         i_z+=1  
-plt.legend()
+plt.legend(draggable=True)
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d')) 
 
 #linear regression
