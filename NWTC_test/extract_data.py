@@ -54,8 +54,8 @@ print(f'{np.round(np.sum(qc_cbh).values/qc_cbh.size*100,1)}% retained after cbh 
 
 Data_trp=Data_trp.assign_coords(height=Data_trp.height*1000+config['height_assist'])
 
-# Data_trp[var_sel].compute().to_netcdf(os.path.join(cd,'data',f'tropoe.{unit}.nc'))
-# Data_trp.close()
+Data_trp[var_sel].compute().to_netcdf(os.path.join(cd,'data',f'tropoe.{unit}.nc'))
+Data_trp.close()
 
 #time information for interpolation
 time_trp=Data_trp.time.values

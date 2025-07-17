@@ -6,15 +6,13 @@ Estimate impact of representativeness error
 import os
 cd=os.path.dirname(__file__)
 import sys
+sys.path.append(os.path.join(cd,'../utils'))
+import utils as utl
 import numpy as np
 import xarray as xr
 from matplotlib import pyplot as plt
 import warnings
-from datetime import datetime, timedelta
 import glob
-from multiprocessing import Pool
-import matplotlib.dates as mdates
-import matplotlib.cm as cm
 import yaml
 import matplotlib
 matplotlib.rcParams['font.family'] = 'serif'
@@ -24,7 +22,6 @@ matplotlib.rcParams['savefig.dpi'] = 500
 
 warnings.filterwarnings('ignore')
 plt.close('all')
-
 
 #%% Inputs
 source_met_sta=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')#source of met stats
@@ -36,9 +33,8 @@ unit='ASSIST11'#assist id
 sel_height=87#[m] height to select wind conditions
 var_trp='temperature'#selected variable in TROPoe data
 var_met='temperature'#selected variable in M5 data
-var_sf='air_temp_rec'#selected structure function variable in M5 data
+var_sf='D_air_temp_rec'#selected structure function variable in M5 data
 wd_align=230#[deg] direction of alignment (met tower based)
-
 
 #stats
 p_value=0.05#for CI
@@ -50,19 +46,13 @@ perc_lim=[1,99] #[%] percentile fitler before feature selection
 wd_lim=10#[deg] maximum misalignment
  
 #graphics
-cmap = plt.get_cmap("viridis")
+cmap = plt.get_cmap("plasma")
 
 #%% Initialization
 #config
 with open(source_config, 'r') as fid:
     config = yaml.safe_load(fid)
     
-#read and align data
-Data_trp=xr.open_dataset(os.path.join(cd,'data',f'tropoe.{unit}.bias.nc'))
-Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.a1.{unit}.nc'))
-
-Data_trp,Data_met=xr.align(Data_trp,Data_met,join="inner",exclude=["height"])
-
 #read wake data
 waked=xr.open_dataset(source_waked)
 
@@ -71,9 +61,11 @@ files=glob.glob(source_met_sta)
 Data_met_sta=xr.open_mfdataset(files)
 
 #%% Main
-
-#save cbh
-cbh=Data_trp.cbh.where(Data_trp.cbh!=np.nanpercentile(Data_trp.cbh,10)).where(Data_trp.cbh!=np.nanpercentile(Data_trp.cbh,90))
+    
+#read and align data
+Data_trp=xr.open_dataset(os.path.join(cd,'data',f'tropoe.{unit}.bias.nc'))
+Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.a1.{unit}.nc'))
+Data_trp,Data_met=xr.align(Data_trp,Data_met,join="inner",exclude=["height"])
 
 #height interpolation
 Data_trp=Data_trp.interp(height=Data_met.height)
@@ -106,19 +98,82 @@ time=Data_met.time.values
 #T difference
 diff=f_trp-f_met
 
-#preconditioning
-Ri=Data_met_sta.Ri_3_122.interp(time=Data_trp.time)
-logRi=np.log10(np.abs(Ri)+1)*np.sign(Ri)
+#met stats synch
+ws=Data_met_sta.ws.interp(time=Data_trp.time)
 
-ws=Data_met_sta.ws.sel(height=sel_height).interp(time=Data_trp.time)
-
-cos_wd=np.cos(np.radians(Data_met_sta.wd.sel(height=sel_height))).interp(time=Data_trp.time)
-sin_wd=np.sin(np.radians(Data_met_sta.wd.sel(height=sel_height))).interp(time=Data_trp.time)
+cos_wd=np.cos(np.radians(Data_met_sta.wd)).interp(time=Data_trp.time)
+sin_wd=np.sin(np.radians(Data_met_sta.wd)).interp(time=Data_trp.time)
 wd=np.degrees(np.arctan2(sin_wd,cos_wd))%360
 
+D_T=Data_met_sta[var_sf].interp(time=Data_trp.time)**0.5
+space_lag=D_T.lag*ws
+
+#alignment
 ang_diff1=((wd - wd_align + 180) % 360) - 180
 ang_diff2=((wd - wd_align+180 + 180) % 360) - 180
-diff_sel=diff.where((np.abs(ang_diff1)<wd_lim)+(np.abs(ang_diff2)<wd_lim))
+sel_aligned=(np.abs(ang_diff1)<wd_lim)+(np.abs(ang_diff2)<wd_lim)
+diff_sel=diff.where(sel_aligned)
+D_T_sel=D_T.where(sel_aligned)
 
-D=Data_met_sta[var_sf].interp(time=Data_trp.time)
+#bin statistics
+bin_space=np.arange(0,550,100)
+bin_ws=np.array([0,5,10,20])
+f_avg=np.zeros((len(height),len(bin_space)-1,len(bin_ws)-1))
+f_low=np.zeros((len(height),len(bin_space)-1,len(bin_ws)-1))
+f_top=np.zeros((len(height),len(bin_space)-1,len(bin_ws)-1))
+for i_h in range(len(height)):
+    i_s=0
+    for s1,s2 in zip(bin_space[:-1],bin_space[1:]):
+        sel_s=(space_lag>=s1)*(space_lag<s2)
+        i_ws=0
+        for ws1,ws2 in zip(bin_ws[:-1],bin_ws[1:]):
+            sel_ws=(ws>=ws1)*(ws<ws2)
+            f_sel=D_T_sel.isel(height=i_h).where(sel_s*sel_ws).values.ravel()
+            f_avg[i_h,i_s,i_ws]=utl.filt_stat(f_sel,np.nanmean)
+            f_low[i_h,i_s,i_ws]=utl.filt_BS_stat(f_sel,np.nanmean,p_value/2*100)
+            f_top[i_h,i_s,i_ws]=utl.filt_BS_stat(f_sel,np.nanmean,(1-p_value/2)*100)
+            i_ws+=1
+        i_s+=1
+    print(f'Structure function at {i_h} m done')
+        
+D_avg=xr.DataArray(f_avg,coords={'height':height,
+                                 'space':(bin_space[1:]+bin_space[:-1])/2,
+                                 'ws':(bin_ws[1:]+bin_ws[:-1])/2})
+
+D_low=xr.DataArray(f_low,coords={'height':height,
+                                 'space':(bin_space[1:]+bin_space[:-1])/2,
+                                 'ws':(bin_ws[1:]+bin_ws[:-1])/2})
+
+D_top=xr.DataArray(f_top,coords={'height':height,
+                                 'space':(bin_space[1:]+bin_space[:-1])/2,
+                                 'ws':(bin_ws[1:]+bin_ws[:-1])/2})
+
+f_std=np.zeros((len(height),len(bin_ws)-1))        
+for i_h in range(len(height)):
+    i_ws=0
+    for ws1,ws2 in zip(bin_ws[:-1],bin_ws[1:]):
+        sel_ws=(ws>=ws1)*(ws<ws2)
+        f_sel=diff_sel.isel(height=i_h).where(sel_ws).values
+        f_std[i_h,i_ws]=np.nanstd(f_sel)
+        i_ws+=1
+    print(f'STD at {i_h} m done')
+
+diff_std=xr.DataArray(f_std,coords={'height':height,'ws':(bin_ws[1:]+bin_ws[:-1])/2})
+    
+#%% Plots
+fig=plt.figure(figsize=(16,5))
+colors = [cmap(i) for i in np.linspace(0,1,len(height))]
+for i_ws in range(len(D_avg.ws)):
+    ax=plt.subplot(1,len(D_avg.ws),i_ws+1)
+    for i_h in range(len(height)):
+        plt.plot(D_avg.space,D_avg.isel(height=i_h,ws=i_ws),'.-',color=colors[i_h])
+        ax.fill_between(D_avg.space,D_low.isel(height=i_h,ws=i_ws),D_top.isel(height=i_h,ws=i_ws),color=colors[i_h],alpha=0.25)
+        plt.plot(440,diff_std.isel(height=i_h,ws=i_ws),'^',color=colors[i_h])
+        
+    plt.ylim([0,diff_std.max()*1.1])
+    plt.grid()
+    plt.xlabel('Spacing [m]')
+    plt.ylabel(r'\sigma(\Delta T) [$^\circ$C]')
+
+
 
