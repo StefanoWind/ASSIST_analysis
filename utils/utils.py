@@ -7,6 +7,7 @@ Created on Fri Jun 20 13:43:10 2025
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import linregress
+import os
 
 def perc_filt(x,perc_lim=[5,95]):
     x_filt=x.copy()
@@ -35,7 +36,7 @@ def filt_BS_stat(x,func,p_value=5,M_BS=100,min_N=10,perc_lim=[5,95]):
     ub=np.nanpercentile(x_filt,perc_lim[1])
     x_filt=x_filt[(x_filt>=lb)*(x_filt<=ub)]
     
-    if len(x)>=min_N:
+    if len(x_filt)>=min_N:
         x_BS=bootstrap(x_filt,M_BS)
         stat=func(x_BS,axis=1)
         BS=np.nanpercentile(stat,p_value)
@@ -106,6 +107,22 @@ def plot_lin_fit(x, y, bins=50, cmap='Greys',ax=None,cax=None,legend=True):
     ax.set_aspect("equal")
     if legend:
         plt.legend(draggable=True)
+        
+def save_all_fig(name,cd,newfolder=False,resolution=300):
+    '''
+    Saves all current figures
+    '''
+    os.makedirs(os.path.join(cd,'figures'),exist_ok=True)
+    if newfolder:
+        os.makedirs(os.path.join(cd,'figures',name),exist_ok=True)
+    figs = [plt.figure(n) for n in plt.get_fignums()]
+    inc=0
+    for fig in figs:
+        if newfolder:
+            fig.savefig(os.path.join(cd,'figures',name,'{i:02d}'.format(i=inc)+'.png'),dpi=resolution, bbox_inches='tight')
+        else:
+            fig.savefig(os.path.join(cd,'figures',name+'{i:02d}'.format(i=inc)+'.png'),dpi=resolution, bbox_inches='tight')
+        inc+=1
     
 def RF_feature_selector(X,y,test_size=0.8,n_search=30,n_repeats=30,limits={}):
     '''

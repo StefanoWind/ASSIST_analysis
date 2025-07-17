@@ -30,7 +30,7 @@ source_met_sta=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')#source of met stats
 sigma_met=0.1#[C] uncertaiinty of met measurements [St Martin et al. 2016]
 
 #user
-unit='ASSIST11'#assist id
+unit='ASSIST10'#assist id
 sel_height=87#[m] height to select wind conditions
 var_trp='temperature'#selected variable in TROPoe data
 var_met='temperature'#selected variable in M5 data
@@ -45,10 +45,10 @@ perc_lim=[1,99] #[%] percentile fitler before feature selection
  
 #graphics
 cmap = plt.get_cmap("viridis")
-zooms=[['2022-05-19','2022-05-21'],
-       ['2022-07-23','2022-07-27'],
-       ['2022-08-08','2022-08-13']]
-
+# zooms=[['2022-05-19','2022-05-21'],
+#        ['2022-07-23','2022-07-27'],
+#        ['2022-08-08','2022-08-13']]
+zooms=[[]]
 rf_vars=['CBH','Ri','Wind speed','Wind direction']
 
 #%% Initialization
