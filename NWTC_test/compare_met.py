@@ -13,35 +13,35 @@ import matplotlib
 from matplotlib import pyplot as plt
 import yaml
 from scipy.stats import norm
-from matplotlib.ticker import NullFormatter,ScalarFormatter
+from matplotlib.ticker import NullFormatter
 import matplotlib.gridspec as gridspec
 import glob
 import matplotlib.dates as mdates
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 14
+matplotlib.rcParams['savefig.dpi']=500
+plt.close("all")
 
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
 source_waked=os.path.join(cd,'data/turbine_wakes.nc')
 source_met_sta=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')#source of met stats
+sigma_met=0.1#[C] uncertaiinty of met measurements [St Martin et al. 2016]
 
 #user
 unit='ASSIST11'#assist id
-sel_height=87
-
-#user
-var_trp='temperature'
-var_met='temperature'#selected temperature variable in M5 data
+sel_height=87#[m] height to select wind conditions
+var_trp='temperature'#selected variable in TROPoe data
+var_met='temperature'#selected variable in M5 data
 
 #stats
 p_value=0.05#for CI
 max_height=200#[km]
-bins_hour=np.arange(25)#[h] hour bins
-max_f=40#[C]
-min_f=-5#[C]
-max_time_diff=10#[s]
-perc_lim=[1,99]
+max_f=40#[C] max threshold of selected variable
+min_f=-5#[C] min threshold of selected variable
+max_time_diff=10#[s] maximum difference in time between met and TROPoe
+perc_lim=[1,99] #[%] percentile fitler before feature selection
  
 #graphics
 cmap = plt.get_cmap("viridis")
@@ -57,28 +57,36 @@ with open(source_config, 'r') as fid:
     config = yaml.safe_load(fid)
     
 #read and align data
-Data_trp=xr.open_dataset(os.path.join(cd,'data',f'tropoe.{unit}.nc'))
+Data_trp=xr.open_dataset(os.path.join(cd,'data',f'tropoe.{unit}.bias.nc'))
 Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.a1.{unit}.nc'))
 
 Data_trp,Data_met=xr.align(Data_trp,Data_met,join="inner",exclude=["height"])
 
+#read wake data
 waked=xr.open_dataset(source_waked)
 
+#read met stats
 files=glob.glob(source_met_sta)
 Data_met_sta=xr.open_mfdataset(files)
 
+#zeroing
 importance={}
 importance_std={}
 
 #%% Main
 
-#interpolation
-cbh=Data_trp.cbh.where(Data_trp.cbh!=np.nanpercentile(Data_trp.cbh,10))
+#save cbh
+cbh=Data_trp.cbh.where(Data_trp.cbh!=np.nanpercentile(Data_trp.cbh,10)).where(Data_trp.cbh!=np.nanpercentile(Data_trp.cbh,90))
+
+#height interpolation
 Data_trp=Data_trp.interp(height=Data_met.height)
 
 #QC
 Data_trp=Data_trp.where(Data_trp.qc==0)
+print(f"{int(np.sum(Data_trp.qc!=0))} points fail QC in TROPoe")
+
 Data_met=Data_met.where(Data_met.time_diff<=max_time_diff)
+print(f"{int(np.sum(Data_met.time_diff>max_time_diff))} points fail max_time_diff")
 
 #remove wake
 Data_trp['waked']=waked['Site 3.2'].interp(time=Data_trp.time)
@@ -101,10 +109,6 @@ time=Data_met.time.values
 #T difference
 diff=f_trp-f_met
 
-#hourly stats
-tnum=np.float64(time)/10**9
-hour=(tnum-np.floor(tnum/(3600*24))*3600*24)/3600
-
 #feature importance
 
 #preconditioning
@@ -113,9 +117,9 @@ logRi=np.log10(np.abs(Ri.values)+1)*np.sign(Ri.values)
 
 ws=Data_met_sta.ws.sel(height=sel_height).interp(time=Data_trp.time).values
 
-wd=Data_met_sta.wd.sel(height=sel_height).interp(time=Data_trp.time).values
-
-# logti=np.log10(Data_met_sta.ws_std.sel(height=sel_height).interp(time=Data_trp.time).values/(ws+10**-10)*100)
+cos_wd=np.cos(np.radians(Data_met_sta.wd.sel(height=sel_height))).interp(time=Data_trp.time).values
+sin_wd=np.sin(np.radians(Data_met_sta.wd.sel(height=sel_height))).interp(time=Data_trp.time).values
+wd=np.degrees(np.arctan2(sin_wd,cos_wd))%360
 
 X=np.array([utl.perc_filt(cbh.values,perc_lim),
             utl.perc_filt(logRi,perc_lim),
@@ -145,15 +149,7 @@ for h in height:
         plt.ylim([-3,3])
         plt.grid()
     i_h+=1
-
-# #importance for absolute error
-# importance_abs={}
-# importance_abs_std={}
-# for h in height:
-#     y=np.abs(diff.sel(height=h).values)
-#     reals=~np.isnan(np.sum(X,axis=1)+y)
-#     importance_abs[h],importance_abs_std[h],y_pred,test_mae,train_mae,best_params=utl.RF_feature_selector(X[reals,:],y[reals])
-
+    
 #%% Plots
 
 #time series of T
@@ -175,18 +171,18 @@ plt.legend()
 fig=plt.figure(figsize=(18,10))
 for i_h in range(len(height)):
     ax=plt.subplot(len(height),1,i_h+1)
-    plt.plot(time,diff.isel(height=i_h),'-k',markersize=3,label='TROPoe-met')
-    # plt.plot(time,Data['trp_temperature_bias'].isel(height=i_h),'r',label='Prior bias')
+    plt.plot(time,diff.isel(height=i_h),'-k',label='TROPoe-met')
+    plt.plot(time,Data_trp.bias.isel(height=i_h),'-b',label='Prior bias')
     plt.ylim([-3,3])
     plt.grid()
     plt.ylabel(r'$\Delta T$' +'\n (TROPoe-met)'+r'[$^\circ$C]')
     if i_h==len(height)-1:
         plt.xlabel('Time (UTC)')
     plt.text(time[10],2,r'$z='+str(height[i_h])+r'$ m',bbox={'alpha':0.5,'color':'w'})
-plt.legend()
+plt.legend(draggable=True)
 
+#selected time series
 fig=plt.figure(figsize=(18,10))
-
 durations=[]
 for zoom in zooms:
     t1=np.datetime64(zoom[0]+'T00:00:00')
@@ -207,8 +203,9 @@ for i_h in range(len(height)):
         for t in time[sel*precip]:
             plt.plot([t,t],[-5,35],'b',alpha=0.25)
         plt.plot(time[sel],f_met.values[sel,:],'k',alpha=0.25)
-        plt.plot(time[sel],f_met.isel(height=i_h).values[sel],'k')
-        plt.plot(time[sel],f_trp.isel(height=i_h).values[sel],'.r',markersize=3)
+        plt.plot(time[sel][0],0,'k',alpha=0.25,label='Met (all heights)')
+        plt.plot(time[sel],f_met.isel(height=i_h).values[sel],'k',label='Met')
+        plt.plot(time[sel],f_trp.isel(height=i_h).values[sel],'.r',markersize=3,label='TROPoe')
         
         ax.set_ylim([-1,35])
         ax.set_xticks(np.arange(t1,t2+np.timedelta64(1,'D'),np.timedelta64(1,'D')))
@@ -232,11 +229,13 @@ for i_h in range(len(height)):
             plt.grid()
             ax.set_xticks(np.arange(t1,t2+np.timedelta64(1,'D'),np.timedelta64(1,'D')))
             ax.set_xticklabels([])
-        if i_z==0:
-            ax.set_ylabel('CBH [km]')
+            if i_z==0:
+                ax.set_ylabel('CBH [km]')
+            else:
+                ax.set_yticklabels([])
         
         i_z+=1  
-
+plt.legend()
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d')) 
 
 #linear regression
@@ -250,7 +249,7 @@ for i_h in range(len(height)):
     else:
         cax=None
     utl.plot_lin_fit(f_met.isel(height=i_h).values,
-                     f_trp.isel(height=i_h).values,ax=ax,cax=cax,bins=50)
+                     f_trp.isel(height=i_h).values,ax=ax,cax=cax,bins=50,legend=i_h==0)
     
     ax.set_xlim([0,30])
     ax.set_ylim([0,30])
@@ -260,6 +259,7 @@ for i_h in range(len(height)):
     ax.set_xlabel(r'$T$ (met) [$^\circ$C]')
     if i_h==0:
         ax.set_ylabel(r'$T$ (TROPoe) [$^\circ$C]')
+        plt.legend(draggable=True)
     else:
         ax.set_yticklabels([])
         
@@ -268,22 +268,23 @@ for i_h in range(len(height)):
     plt.hist(diff.isel(height=i_h),bins=bins,color='k',alpha=0.25,density=True)
     plt.plot(bins,norm.pdf(bins,loc=diff.isel(height=i_h).mean(),
                                scale=diff.isel(height=i_h).std()),'k',label='Data')
-    plt.plot(bins,norm.pdf(bins,loc=0,scale=sigma_trp.isel(height=i_h).mean()),'r',label='Theory')
-    ax.fill_between(bins,norm.pdf(bins,loc=0,scale=sigma_trp.isel(height=i_h).max()),
-                         norm.pdf(bins,loc=0,scale=sigma_trp.isel(height=i_h).min()),color='r',alpha=0.25)
+    plt.plot(bins,norm.pdf(bins,loc=0,scale=(sigma_trp.isel(height=i_h).mean()**2+sigma_met**2)**0.5),'r',label='Theory')
+    ax.fill_between(bins,norm.pdf(bins,loc=0,scale=(sigma_trp.isel(height=i_h).min()**2+sigma_met**2)**0.5),
+                         norm.pdf(bins,loc=0,scale=(sigma_trp.isel(height=i_h).max()**2+sigma_met**2)**0.5),color='r',alpha=0.25)
     ax.set_yscale('log')
     plt.grid()
     if i_h==0:
-        ax.set_ylabel('Count')
+        ax.set_ylabel('Counts')
+        plt.legend(draggable=True)
     else:
         ax.yaxis.set_major_formatter(NullFormatter())
     
     plt.xlabel(r'$\Delta T$ (TROPoe-met) [$^\circ$C]')
     plt.ylim([0.01,10])
-plt.legend(draggable=True)
+
         
-    
 #importance
+matplotlib.rcParams['font.size'] = 12
 plt.figure(figsize=(14,4))
 cmap=matplotlib.cm.get_cmap('plasma')
 colors = [cmap(i) for i in np.linspace(0,1,len(height))]

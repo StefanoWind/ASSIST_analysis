@@ -29,6 +29,14 @@ with open(source_config, 'r') as fid:
     
 files=glob.glob(os.path.join(cd,config['sources_trp'][unit]))
 
+data_trp_all=xr.open_dataset(os.path.join(cd,'data',f'tropoe.{unit}.nc'))
+
+#zeroing
+bias_all=[]
+time_all=np.array([],dtype='datetime64')
+
+os.makedirs(os.path.join(cd,'figures','bias'),exist_ok=True)
+
 #%% Main
 for f in files:
     
@@ -56,7 +64,6 @@ for f in files:
                                  data.hour.values,
                                 [data.hour.values[0]+24]])
     
-    
     xa_met=np.zeros((len(data.height),len(hour_circle)))
     xa_met[:,0]=data.mean_temperature_hourly.values[:,-1]
     xa_met[:,1:-1]=data.mean_temperature_hourly.values
@@ -76,12 +83,10 @@ for f in files:
         A=data_trp['Akernal'].isel(time=i_t).values[:Nz,:Nz].T
         bias[:,i_t]=(A-I)@dxa[:,i_t]
         
-    #%% Output
-    output=data_trp.copy()
-    output['bias']=xr.DataArray(data=bias,coords={'height':height,'time':data_trp.time})
-    os.makedirs(os.path.dirname(f.replace('c0','c2')),exist_ok=True)
-    output.to_netcdf(f.replace('c0','c2'))
-    print(f)
+    #store bias
+    bias_all.append(bias.T)
+    time_all=np.append(time_all,data_trp.time.values)
+    print(f"{f} done")
     
     #%% Plots   
     plt.figure(figsize=(18,6))
@@ -101,9 +106,11 @@ for f in files:
     plt.ylim([0,2000])
     plt.grid()
     plt.colorbar(label='$\Delta T$ [$^\circ$C]')
-    plt.savefig(f.replace('c0','c2').replace('.nc','.bias.png'))
+    plt.savefig(os.path.join(cd,'figures','bias',os.path.basename(f).replace('.nc','.bias.png')))
     
     plt.close()
 
-    
-  
+#Output
+output=data_trp_all.copy()
+output['bias']=xr.DataArray(np.concatenate(bias_all),coords={'time':data_trp_all.time.values,'height':data_trp_all.height.values})
+output.to_netcdf(os.path.join(cd,'data',f'tropoe.{unit}.bias.nc'))

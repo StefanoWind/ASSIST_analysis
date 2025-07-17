@@ -67,9 +67,7 @@ def datestr(num,format="%Y-%m-%d %H:%M:%S.%f"):
     string=datetime.utcfromtimestamp(num).strftime(format)
     return string
 
-
-
-def plot_lin_fit(x, y, bins=50, cmap='Greys',ax=None,cax=None):
+def plot_lin_fit(x, y, bins=50, cmap='Greys',ax=None,cax=None,legend=True):
 
     # Remove NaNs
     mask = ~np.isnan(x) & ~np.isnan(y)
@@ -92,7 +90,7 @@ def plot_lin_fit(x, y, bins=50, cmap='Greys',ax=None,cax=None):
 
     # Regression line
     x_line = np.linspace(x.min(), x.max(), 100)
-    ax.plot([np.min(x),np.max(x)],[np.min(x),np.max(x)],'--b')
+    ax.plot([np.min(x),np.max(x)],[np.min(x),np.max(x)],'--b',label='1:1')
     ax.plot(x_line, slope * x_line + intercept, color='red', linewidth=2, label='Linear fit')
     
     # Stats textbox
@@ -106,10 +104,10 @@ def plot_lin_fit(x, y, bins=50, cmap='Greys',ax=None,cax=None):
             fontsize=12, verticalalignment='top',
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
     ax.set_aspect("equal")
-    plt.show()
-
+    if legend:
+        plt.legend(draggable=True)
     
-def RF_feature_selector(X,y,test_size=0.8,n_search=30,n_repeats=10,limits={}):
+def RF_feature_selector(X,y,test_size=0.8,n_search=30,n_repeats=30,limits={}):
     '''
     Feature importance selector based on random forest. The optimal set of hyperparameters is optimized through a random search.
     Importance is evaluated through the permutation method, which gives higher scores to fatures whose error metrics drops more after reshuffling.

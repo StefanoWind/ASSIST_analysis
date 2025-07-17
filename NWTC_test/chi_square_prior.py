@@ -4,9 +4,6 @@ Comprehensive check of prior based on met data
 """
 import os
 cd=os.path.dirname(__file__)
-import sys
-sys.path.append('../utils')
-import utils as utl
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.stats import chi2
@@ -44,14 +41,14 @@ cmap = plt.get_cmap("viridis")
 os.makedirs(os.path.join(cd,'figures/prior_test'),exist_ok=True)
 
 #load met data
-data_met=xr.open_dataset(os.path.join(cd,'data',f'met.b0.{unit}.nc')).rename({'height_therm':'height'})
+data_met=xr.open_dataset(os.path.join(cd,'data',f'met.a1.{unit}.nc'))
 month=np.array([int(str(t)[5:7]) for t in data_met.time.values])
 hour=np.array([int(str(t)[11:13]) for t in data_met.time.values])
 data_met['month']=xr.DataArray(month,coords={'time':data_met.time})
 data_met['hour']=xr.DataArray(hour,coords={'time':data_met.time})
 
 #load TROPoe data
-data_trp=xr.open_dataset(os.path.join(cd,'data',f'tropoe.{unit}_temp.nc'))
+data_trp=xr.open_dataset(os.path.join(cd,'data',f'tropoe.{unit}.nc'))
 month=np.array([int(str(t)[5:7]) for t in data_trp.time.values])
 hour=np.array([int(str(t)[11:13]) for t in data_trp.time.values])
 data_trp['month']=xr.DataArray(month,coords={'time':data_trp.time})

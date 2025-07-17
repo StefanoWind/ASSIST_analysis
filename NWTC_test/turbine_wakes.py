@@ -24,7 +24,7 @@ source_turbines={'GE1.5':  'data/nwtc/scada/ge1.5.csv',
                  'SGRE2.3':'data/nwtc/scada/sgre2.3.csv',
                  'SGRE2.0':'data/nwtc/scada/sgre2.0.csv'}#sources of SCADA power
 
-source_met=os.path.join(cd,'data/nwtc/nwtc.m5.c0/*nc')#source of met stats
+source_met=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')#source of met stats
 
 source_layout=os.path.join(cd,'data','NWTC.xlsx')#source of site layout
 
@@ -32,7 +32,7 @@ source_layout=os.path.join(cd,'data','NWTC.xlsx')#source of site layout
 timezone = 'America/Denver'#timezone
 turbines=['GE1.5','SGRE2.3','SGRE2.0']#turbine names
 sites=['Site 3.2','M5']#wakes sites
-height_sel=119#[m] selected height fo wind direction
+height_sel=87#[m] selected height fo wind direction
 
 #stats
 min_power=0.1#minimum normalized power
@@ -62,7 +62,7 @@ FC['y']=xy[1]-yref
 #read met data
 files=glob.glob(source_met)
 met=xr.open_mfdataset(files)
-wd=met.wd.sel(height_kin=height_sel)
+wd=met.wd.sel(height=height_sel)
 
 #read power data
 power=xr.Dataset()

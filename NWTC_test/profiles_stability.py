@@ -61,10 +61,10 @@ cmap = plt.get_cmap("coolwarm")
 #%% Initialization
 
 #read and align data
-Data_trp=xr.open_dataset(os.path.join(cd,'data',f'tropoe.{unit}.nc'))
-Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.b0.{unit}.nc'))
+Data_trp=xr.open_dataset(os.path.join(cd,'data',f'tropoe.{unit}.bias.nc'))
+Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.a1.{unit}.nc'))
 
-Data_trp,Data_met=xr.align(Data_trp,Data_met,join="inner")
+Data_trp,Data_met=xr.align(Data_trp,Data_met,join="inner",exclude=["height"])
 
 #QC
 Data_trp=Data_trp.where(Data_trp.qc==0)
@@ -109,20 +109,22 @@ f_trp=Data_trp[var_trp].where(Data_trp['waked'].sum(dim='turbine')==0).sel(heigh
 print(f"{int(np.sum(Data_trp['waked'].sum(dim='turbine')>0))} wake events at Site 3.2 excluded")
 
 Data_met['waked']=waked['M5'].interp(time=Data_met.time)
-f_met=Data_met[var_met].where(Data_met['waked'].sum(dim='turbine')==0).sel(height_therm=slice(0,max_height))
-f_met=f_met.rename({'height_therm':'height'})
+f_met=Data_met[var_met].where(Data_met['waked'].sum(dim='turbine')==0).sel(height=slice(0,max_height))
 print(f"{int(np.sum(Data_met['waked'].sum(dim='turbine')>0))} wake events at M5 excluded")
 
 #remove outliers
 f_trp=f_trp.where(f_trp>=min_f).where(f_trp<=max_f)
 f_met=f_met.where(f_met>=min_f).where(f_met<=max_f)
 
+#bias correction
+f_trp_bc=f_trp-Data_trp.bias
+
 #remove common nans
 real=np.isnan(f_trp).sum(dim="height")+np.isnan(f_met).sum(dim="height")==0
 f_trp=f_trp[real]
 f_met=f_met[real]
 
-#stats
+#stats TROPoe
 f_trp_avg=np.zeros((len(f_trp.height),len(stab_classes_uni)))
 f_trp_low=np.zeros((len(f_trp.height),len(stab_classes_uni)))
 f_trp_top=np.zeros((len(f_trp.height),len(stab_classes_uni)))
@@ -130,15 +132,32 @@ for i_sc in range(len(stab_classes_uni)):
     sc=stab_classes_uni[i_sc]
     for i_h in range(len(f_trp.height)):
         f_sel=f_trp.isel(height=i_h).where(stab_class==sc).values
-        f_trp_avg[i_h,i_sc]=utl.filt_stat(f_sel,np.nanmedian)
-        f_trp_low[i_h,i_sc]=utl.filt_BS_stat(f_sel,np.nanmedian,p_value/2*100)
-        f_trp_top[i_h,i_sc]=utl.filt_BS_stat(f_sel,np.nanmedian,(1-p_value/2)*100)
+        f_trp_avg[i_h,i_sc]=utl.filt_stat(f_sel,np.mean)
+        f_trp_low[i_h,i_sc]=utl.filt_BS_stat(f_sel,np.mean,p_value/2*100)
+        f_trp_top[i_h,i_sc]=utl.filt_BS_stat(f_sel,np.mean,(1-p_value/2)*100)
 
 trp_stats=xr.Dataset()
 trp_stats['f_avg']=xr.DataArray(data=f_trp_avg,coords={'height':f_trp.height,'_class':stab_classes_uni})
 trp_stats['f_low']=xr.DataArray(data=f_trp_low,coords={'height':f_trp.height,'_class':stab_classes_uni})
 trp_stats['f_top']=xr.DataArray(data=f_trp_top,coords={'height':f_trp.height,'_class':stab_classes_uni})
 
+#stats TROPoe bias corrected
+f_trp_bc_avg=np.zeros((len(f_trp.height),len(stab_classes_uni)))
+f_trp_bc_low=np.zeros((len(f_trp.height),len(stab_classes_uni)))
+f_trp_bc_top=np.zeros((len(f_trp.height),len(stab_classes_uni)))
+for i_sc in range(len(stab_classes_uni)):
+    sc=stab_classes_uni[i_sc]
+    for i_h in range(len(f_trp.height)):
+        f_sel=f_trp_bc.isel(height=i_h).where(stab_class==sc).values
+        f_trp_bc_avg[i_h,i_sc]=utl.filt_stat(f_sel,np.mean)
+        f_trp_bc_low[i_h,i_sc]=utl.filt_BS_stat(f_sel,np.mean,p_value/2*100)
+        f_trp_bc_top[i_h,i_sc]=utl.filt_BS_stat(f_sel,np.mean,(1-p_value/2)*100)
+        
+trp_stats['f_bc_avg']=xr.DataArray(data=f_trp_bc_avg,coords={'height':f_trp.height,'_class':stab_classes_uni})
+trp_stats['f_bc_low']=xr.DataArray(data=f_trp_bc_low,coords={'height':f_trp.height,'_class':stab_classes_uni})
+trp_stats['f_bc_top']=xr.DataArray(data=f_trp_bc_top,coords={'height':f_trp.height,'_class':stab_classes_uni})
+
+#stats met tower
 f_met_avg=np.zeros((len(f_met.height),len(stab_classes_uni)))
 f_met_low=np.zeros((len(f_met.height),len(stab_classes_uni)))
 f_met_top=np.zeros((len(f_met.height),len(stab_classes_uni)))
@@ -156,6 +175,7 @@ met_stats['f_low']=xr.DataArray(data=f_met_low,coords={'height':f_met.height,'_c
 met_stats['f_top']=xr.DataArray(data=f_met_top,coords={'height':f_met.height,'_class':stab_classes_uni})
 
 #%% Plots
+plt.close("all")
 
 #average profiles
 plt.figure(figsize=(18,4))
@@ -170,6 +190,12 @@ for i_sc in range(len(stab_classes_uni)):
     plt.fill_betweenx(trp_stats.height,trp_stats.f_low.isel(_class=i_sc),
                                       trp_stats.f_top.isel(_class=i_sc),
                                       color='r',alpha=0.25)
+    
+    plt.plot(trp_stats.f_bc_avg.isel(_class=i_sc),trp_stats.height,'.-b',label='TROPoe (bias-corrected)')
+    plt.fill_betweenx(trp_stats.height,trp_stats.f_bc_low.isel(_class=i_sc),
+                                      trp_stats.f_bc_top.isel(_class=i_sc),
+                                      color='b',alpha=0.25)
+    
     plt.plot(-g/cp*f_trp.height+met_stats.f_avg.isel(_class=i_sc).isel(height=0),trp_stats.height,'--k')
     
     plt.xlim([15,25])
