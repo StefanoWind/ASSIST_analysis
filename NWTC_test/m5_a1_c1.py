@@ -109,6 +109,7 @@ def process_day(day,source,config):
                         D[lag,:]=dsq
                     time_lag=np.round((data.time.values[lags]-data.time.values[0])/np.timedelta64(1,'s'))
                     data_avg[f"D_{v}"]=xr.DataArray(D,coords={'lag':time_lag,'height':data.height.values})
+                    data_avg[f"D_{v}"]=data_avg[f"D_{v}"].interp(lag=time_lag_common)
                 
                 #pressure gradient
                 e=vapor_pressure(data_avg['dewp_temp'])
@@ -202,6 +203,9 @@ with open(path_config, 'r') as fid:
 start = datetime.strptime(sdate, '%Y-%m-%d')
 end =   datetime.strptime(edate, '%Y-%m-%d')
 days = [start + timedelta(days=i) for i in range((end - start).days + 1)]
+
+#common lag grid
+time_lag_common=np.arange(config['structure_func_lags'])
 
 #%% Main
 #run processing
