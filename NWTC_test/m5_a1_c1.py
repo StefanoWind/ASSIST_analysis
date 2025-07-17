@@ -30,7 +30,7 @@ path_config=os.path.join(cd,'configs/config.yaml')
 if len(sys.argv)==1:
     source=os.path.join(cd,'data/nwtc/nwtc.m5.a1')#location of a0 files
     replace=True#replace old files?
-    sdate='2022-05-15'#start date
+    sdate='2022-08-23'#start date
     edate='2024-08-25'#end date
     mode="serial"
 else:
@@ -97,6 +97,18 @@ def process_day(day,source,config):
                 data_std=data_std.where(data_avail>config['min_data_avail'])
                 for v in data_std.data_vars:
                     data_avg[v+'_std']=data_std[v]
+                    
+                #structure function
+                dt_met=np.median(np.diff(data.time))/np.timedelta64(1,'s')
+                for v in config['structure_func_vars']:
+                    lags=np.arange(config['structure_func_lags'])
+                    D = np.zeros((len(lags),len(data.height)))
+                    x=data[v].rolling(time=int(config['structure_func_resampling']/dt_met), center=True).mean()
+                    for lag in lags:
+                        dsq = ((x.shift(time=-lag) - x)**2).mean(dim='time')
+                        D[lag,:]=dsq
+                    time_lag=np.round((data.time.values[lags]-data.time.values[0])/np.timedelta64(1,'s'))
+                    data_avg[f"D_{v}"]=xr.DataArray(D,coords={'lag':time_lag,'height':data.height.values})
                 
                 #pressure gradient
                 e=vapor_pressure(data_avg['dewp_temp'])
