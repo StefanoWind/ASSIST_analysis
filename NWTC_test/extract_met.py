@@ -4,7 +4,6 @@ Extract all high-frequency M5 time series
 """
 import os
 cd=os.path.dirname(__file__)
-import sys
 import numpy as np
 import xarray as xr
 import matplotlib
@@ -45,14 +44,14 @@ for date in dates:
     Data_met_res=Data_met.rolling(time=int(sampling_rate/dt_met), center=True).mean()
    
     #save temp file
-    Data_met_res.compute().to_netcdf(os.path.join(cd,'data',f'{date}.met.a1.all.{unit}.temp.nc'))
+    Data_met_res.compute().to_netcdf(os.path.join(cd,'data',f'{date}.met.a1.all.temp.nc'))
     Data_met.close()
     print(f"{date} done", flush=True)
 
 #combine daily files
-files=glob.glob(os.path.join(cd,'data',f'*.met.a1.all.{unit}.temp.nc'))
+files=glob.glob(os.path.join(cd,'data','*.met.a1.all.temp.nc'))
 Data_met=xr.open_mfdataset(files)
-Data_met.compute().to_netcdf(os.path.join(cd,'data',f'met.a1.all.{unit}.nc'))
+Data_met.compute().to_netcdf(os.path.join(cd,'data','met.a1.all.nc'))
 Data_met.close()
 
 for f in files:
