@@ -19,11 +19,6 @@ source_config=os.path.join(cd,'configs','config.yaml')
 var='temperature'
 sampling_rate=14#[s] sampling rate of ASSIST
 
-if len(sys.argv)==1:
-    unit='ASSIST11'
-else:
-    unit=sys.argv[1]
-
 #%% Initialization
 #config
 with open(source_config, 'r') as fid:
