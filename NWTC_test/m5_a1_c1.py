@@ -103,13 +103,20 @@ def process_day(day,source,config):
                 for v in config['structure_func_vars']:
                     lags=np.arange(config['structure_func_lags'])
                     D = np.zeros((len(lags),len(data.height)))
-                    x=data[v].rolling(time=int(config['structure_func_resampling']/dt_met), center=True).mean()
+                    D_res = np.zeros((len(lags),len(data.height)))
+                    x=data[v]
+                    x_res=data[v].rolling(time=int(config['structure_func_resampling']/dt_met), center=True).mean()
                     for lag in lags:
                         dsq = ((x.shift(time=-lag) - x)**2).mean(dim='time')
+                        dsq_res = ((x_res.shift(time=-lag) - x_res)**2).mean(dim='time')
                         D[lag,:]=dsq
+                        D_res[lag,:]=dsq_res
+                        
                     time_lag=np.round((data.time.values[lags]-data.time.values[0])/np.timedelta64(1,'s'))
                     data_avg[f"D_{v}"]=xr.DataArray(D,coords={'lag':time_lag,'height':data.height.values})
                     data_avg[f"D_{v}"]=data_avg[f"D_{v}"].interp(lag=time_lag_common)
+                    data_avg[f"D_res_{v}"]=xr.DataArray(D_res,coords={'lag':time_lag,'height':data.height.values})
+                    data_avg[f"D_res_{v}"]=data_avg[f"D_res_{v}"].interp(lag=time_lag_common)
                 
                 #pressure gradient
                 e=vapor_pressure(data_avg['dewp_temp'])

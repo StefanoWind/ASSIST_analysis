@@ -149,7 +149,7 @@ for h in height:
         plt.ylim([-3,3])
         plt.grid()
     i_h+=1
-    
+
 #%% Plots
 
 #time series of T
