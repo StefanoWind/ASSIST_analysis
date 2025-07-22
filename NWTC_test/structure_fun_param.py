@@ -47,7 +47,7 @@ def F(z_L):
         return 4.9*(1+2.4*(z_L)**(2/3))
     
 def phi_h(z0_L):
-    return 0.74*(1-9*z0/L)**(-0.5)
+    return 0.74*(1-9*z0_L)**(-0.5)
 
 def psi_m(z_L):
     """Stability correction function for momentum (ψ_M)."""
@@ -148,9 +148,11 @@ time=Data_met_sta.time.values
 Data_met_sta=Data_met_sta.where(Data_met_sta.ws>min_ws)
  
 D_T=Data_met_sta['D_air_temp_rec']
+D_T_res=Data_met_sta['D_res_air_temp_rec']
 r=(D_T.lag*Data_met_sta.ws).transpose('time','lag','height')
 
-C_T=(D_T/r**(2/3)).median(dim='lag')
+C_T=(D_T/r**(2/3)).where(D_T.lag>10).median(dim='lag')
+C_T_res=(D_T_res/r**(2/3)).where(D_T.lag>10).median(dim='lag')
 
 #gradients
 dtheta_v_dz=np.zeros((len(time),len(height)-1))
