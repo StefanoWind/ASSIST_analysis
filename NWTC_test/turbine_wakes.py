@@ -31,7 +31,7 @@ source_layout=os.path.join(cd,'data','NWTC.xlsx')#source of site layout
 #site info
 timezone = 'America/Denver'#timezone
 turbines=['GE1.5','SGRE2.3','SGRE2.0']#turbine names
-sites=['Site 3.2','M5']#wakes sites
+sites=['Site 3.2','M5','Site 4.0','M2']#wakes sites
 height_sel=87#[m] selected height fo wind direction
 
 #stats

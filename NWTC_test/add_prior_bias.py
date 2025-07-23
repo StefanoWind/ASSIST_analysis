@@ -5,6 +5,7 @@ Add error due to prior
 import os
 cd=os.path.dirname(__file__)
 import numpy as np
+
 import xarray as xr
 import matplotlib
 from matplotlib import pyplot as plt
@@ -20,7 +21,7 @@ source_config=os.path.join(cd,'configs','config.yaml')
 source=os.path.join(cd,'data/prior/Xa_Sa_datafile.nwtc.{unit}.55_levels.month_{month:02}.cdf')
 
 #user
-unit='ASSIST10'
+unit='ASSIST11'
 
 #%% Initialization
 #config
