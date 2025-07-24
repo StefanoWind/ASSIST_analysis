@@ -233,7 +233,7 @@ for unit in units:
     
 #%% Plots
 plt.close('all')
-cmap = plt.get_cmap("coolwarm")
+cmap = plt.get_cmap("coolwarm_r")
 colors = [cmap(i) for i in np.linspace(0,1,len(bin_Ri)-1)]
 for unit in units:
     fig=plt.figure(figsize=(18,5))
@@ -252,7 +252,7 @@ for unit in units:
                                       color=colors[i_Ri],capsize=5,alpha=0.75,zorder=10)
             plt.plot(D_avg[unit].space,D_avg[unit].space**(1/3)*10**-3*5,'--k')
                     
-            plt.plot(D_avg[unit].space,D_avg[unit].isel(height=i_h,Ri=i_Ri),'.-',color=colors[i_Ri],label=stab_names[i_Ri],markersize=7)
+            plt.plot(D_avg[unit].space,D_avg[unit].isel(height=i_h,Ri=i_Ri),'.-',color=colors[i_Ri],label=s,markersize=7)
             ax.fill_between(D_avg[unit].space,D_low[unit].isel(height=i_h,Ri=i_Ri),D_top[unit].isel(height=i_h,Ri=i_Ri),
                             color=colors[i_Ri],alpha=0.25,zorder=10)
         
@@ -284,7 +284,7 @@ for i_h in range(len(height)):
                                       color=colors[i_Ri],capsize=5,alpha=0.75,zorder=10)
         plt.plot(D_avg[unit_sel].space,D_avg[unit_sel].space**(1/3)*10**-3*5,'--k')
                 
-        plt.plot(D_avg[unit_sel].space,D_avg[unit_sel].isel(height=i_h,Ri=i_Ri),'.-',color=colors[i_Ri],label=stab_names[i_Ri],markersize=7)
+        plt.plot(D_avg[unit_sel].space,D_avg[unit_sel].isel(height=i_h,Ri=i_Ri),'.-',color=colors[i_Ri],label=s,markersize=7)
         ax.fill_between(D_avg[unit_sel].space,D_low[unit_sel].isel(height=i_h,Ri=i_Ri),D_top[unit_sel].isel(height=i_h,Ri=i_Ri),
                         color=colors[i_Ri],alpha=0.25,zorder=10)
     
