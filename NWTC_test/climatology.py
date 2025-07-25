@@ -5,6 +5,9 @@ Extract climatology information
 
 import os
 cd=os.path.dirname(__file__)
+import sys
+sys.path.append(os.path.join(cd,'../utils'))
+import utils as utl
 import numpy as np
 import xarray as xr
 from matplotlib import pyplot as plt
@@ -21,127 +24,145 @@ warnings.filterwarnings('ignore')
 plt.close('all')
 
 #%% Inputs
-source=os.path.join(cd,'data/nwtc/nwtc.m5.c0/*nc')
-height_sel=119#[m] selected height
-
-stab_class={'S':[0,200],
-            'NS':[200,500],
-            'N1':[500,np.inf],
-            'N2':[-np.inf,-500],
-            'NU':[-500,-200],
-            'U':[-200,0]}#stability classes from Obukhov length [Hamilton and Debnath, 2019]
+source=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')
+source_waked=os.path.join(cd,'data/turbine_wakes.nc')
+height_sel=87#[m] selected height for wind rose
 
 #stats
 perc_lim=[5,95]#[%] percentile filter limit
 p_value=0.05#p-value of uncertianty bands
-bin_hour=np.arange(-0.5,24)#hour bins
+bin_hour_ws=np.arange(25)#hour bins for wind speed
+bin_hour_wd=np.arange(0,25,2)#hour bins for wind direction
+bin_Ri=np.array([-100,-0.25,-0.03,0.03,0.25,100])#bins in Ri [mix of Hamilton 2019 and Aitken 2014]
+bin_wd=np.arange(0,361,30) #bins in wind direction
+max_unc_temp_std=0.1#[C] maximum uncertainty of mean temperature std
+max_unc_ti=10#[%] maximum uncertainty of TI
 
 #graphics
-stab_class_uni=['S','NS','N','NU','U']
-
-#%% Functions
-def filt_stat(x,func,perc_lim=[5,95]):
-    '''
-    Statistic with percentile filter
-    '''
-    x_filt=x.copy()
-    lb=np.nanpercentile(x_filt,perc_lim[0])
-    ub=np.nanpercentile(x_filt,perc_lim[1])
-    x_filt=x_filt[(x_filt>=lb)*(x_filt<=ub)]
-       
-    return func(x_filt)
-
-def filt_BS_stat(x,func,p_value=5,M_BS=100,min_N=10,perc_lim=[5,95]):
-    '''
-    Statstics with percentile filter and bootstrap
-    '''
-    x_filt=x.copy()
-    lb=np.nanpercentile(x_filt,perc_lim[0])
-    ub=np.nanpercentile(x_filt,perc_lim[1])
-    x_filt=x_filt[(x_filt>=lb)*(x_filt<=ub)]
-    
-    if len(x)>=min_N:
-        x_BS=bootstrap(x_filt,M_BS)
-        stat=func(x_BS,axis=1)
-        BS=np.nanpercentile(stat,p_value)
-    else:
-        BS=np.nan
-    return BS
-
-
-def bootstrap(x,M):
-    '''
-    Bootstrap sample drawer
-    '''
-    i=np.random.randint(0,len(x),size=(M,len(x)))
-    x_BS=x[i]
-    return x_BS
+stab_names={'S':4,'NS':3,'N':2,'NU':1,'U':0}
+hour_sunrise=13#[h]
+hour_sunset=1#[h]
 
 #%% Initialization
+
+#read met stats
 files=glob.glob(source)
 data=xr.open_mfdataset(files)
-data=data.where(data.precip.isel(height_prec=0)==0)#excluding precipitation
+
+#read wake data
+waked=xr.open_dataset(source_waked)
 
 #%% Main
-ws=data.u_rot.sel(height_kin=height_sel).values
-wd=data.wd.sel(height_kin=height_sel).values
-L=data.L.mean(dim="height_kin")
 
-#stab classes
-data['stab_class']=xr.DataArray(data=['null']*len(data.time),coords={'time':data.time})
-
-for s in stab_class.keys():
-    sel=(L>=stab_class[s][0])*(L<stab_class[s][1])
-    if s=='N1' or s=='N2':
-        s='N'
-    data['stab_class']=data['stab_class'].where(~sel,other=s)
+#QC
+data=data.where(data.precip.isel(height=0)==0)#excluding precipitation
+print(f"{int(np.sum(data.precip.isel(height=0)>0))} precipitation events excluded")
+data['waked']=waked['M5'].interp(time=data.time)
+print(f"{int(np.sum(data['waked'].sum(dim='turbine')>0))} wake events at M5 (stats) excluded")
+data=data.where(data['waked'].sum(dim='turbine')==0)
     
-hour=[(t-np.datetime64(str(t)[:10]))/np.timedelta64(1,'h') for t in data.time.values]
+#extract values
+ws=data.ws.sel(height=height_sel).values
+wd=data.wd.sel(height=height_sel).values
+Ri=data.Ri_3_122
+Ri=Ri.where((Ri>bin_Ri[0])*(Ri<bin_Ri[-1]))
+ti=data.ws_std/data.ws*100
+
+#hour
+hour=np.array([(t-np.datetime64(str(t)[:10]))/np.timedelta64(1,'h') for t in data.time.values])
 data['hour']=xr.DataArray(data=hour,coords={'time':data.time.values})
 
-#daily cycles
-hour_avg=(bin_hour[:-1]+bin_hour[1:])/2
+#daily cycles of temperature
+hour_avg_ws=(bin_hour_ws[:-1]+bin_hour_ws[1:])/2
 
-f_avg_all=np.zeros((len(hour_avg),len(data.height_therm)))
-f_low_all=np.zeros((len(hour_avg),len(data.height_therm)))
-f_top_all=np.zeros((len(hour_avg),len(data.height_therm)))
-for i_h in range(len(data.height_therm)):
-    f=data['air_temp_rec'].isel(height_therm=i_h).values
-    real=~np.isnan(f)
-    f_avg= stats.binned_statistic(data.hour.values[real], f[real],statistic=lambda x:   filt_stat(x,np.nanmean,perc_lim=perc_lim),                          bins=bin_hour)[0]
-    f_low= stats.binned_statistic(data.hour.values[real], f[real],statistic=lambda x:filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=p_value/2*100),    bins=bin_hour)[0]
-    f_top= stats.binned_statistic(data.hour.values[real], f[real],statistic=lambda x:filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=(1-p_value/2)*100),bins=bin_hour)[0]
+f_avg_all=np.zeros((len(hour_avg_ws),len(data.height)))
+f_low_all=np.zeros((len(hour_avg_ws),len(data.height)))
+f_top_all=np.zeros((len(hour_avg_ws),len(data.height)))
+for i_h in range(len(data.height)):
+    f_sel=data['air_temp_rec'].isel(height=i_h).values
+    real=~np.isnan(f_sel)
+    f_avg= stats.binned_statistic(hour[real], f_sel[real],statistic=lambda x: utl.filt_stat(x,   np.nanmean,perc_lim=perc_lim),                          bins=bin_hour_ws)[0]
+    f_low= stats.binned_statistic(hour[real], f_sel[real],statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=p_value/2*100),    bins=bin_hour_ws)[0]
+    f_top= stats.binned_statistic(hour[real], f_sel[real],statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=(1-p_value/2)*100),bins=bin_hour_ws)[0]
 
     f_avg_all[:,i_h]=f_avg
     f_low_all[:,i_h]=f_low
     f_top_all[:,i_h]=f_top
     
 data_avg=xr.Dataset()
-data_avg['temp_avg']=xr.DataArray(data=f_avg_all,coords={'hour':hour_avg,'height':data.height_therm.values})
-data_avg['temp_low']=xr.DataArray(data=f_low_all,coords={'hour':hour_avg,'height':data.height_therm.values})
-data_avg['temp_top']=xr.DataArray(data=f_top_all,coords={'hour':hour_avg,'height':data.height_therm.values})
-        
+data_avg['temp_avg']=xr.DataArray(data=f_avg_all,coords={'hour':hour_avg_ws,'height':data.height.values})
+data_avg['temp_low']=xr.DataArray(data=f_low_all,coords={'hour':hour_avg_ws,'height':data.height.values})
+data_avg['temp_top']=xr.DataArray(data=f_top_all,coords={'hour':hour_avg_ws,'height':data.height.values})
+
+#daily directional cycles of temperature std
+hour_avg_wd=(bin_hour_wd[:-1]+bin_hour_wd[1:])/2
+wd_avg=(bin_wd[:-1]+bin_wd[1:])/2
+
+f_avg_all=np.zeros((len(hour_avg_wd),len(wd_avg),len(data.height)))
+f_low_all=np.zeros((len(hour_avg_wd),len(wd_avg),len(data.height)))
+f_top_all=np.zeros((len(hour_avg_wd),len(wd_avg),len(data.height)))
+for i_h in range(len(data.height)):
+    f_sel=data['air_temp_rec_std'].isel(height=i_h).values
+    wd_sel=data.wd.isel(height=i_h).values
+    real=~np.isnan(f_sel+wd_sel)
+    f_avg= stats.binned_statistic_2d(hour[real], wd[real], f_sel[real],statistic=lambda x: utl.filt_stat(x,   np.nanmean,perc_lim=perc_lim),                          bins=[bin_hour_wd,bin_wd])[0]
+    f_low= stats.binned_statistic_2d(hour[real], wd[real], f_sel[real],statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=p_value/2*100),    bins=[bin_hour_wd,bin_wd])[0]
+    f_top= stats.binned_statistic_2d(hour[real], wd[real], f_sel[real],statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=(1-p_value/2)*100),bins=[bin_hour_wd,bin_wd])[0]
+
+    f_avg_all[:,:,i_h]=f_avg
+    f_low_all[:,:,i_h]=f_low
+    f_top_all[:,:,i_h]=f_top
+   
+data_std=xr.Dataset()
+data_std['temp_std_avg']=xr.DataArray(data=f_avg_all,coords={'hour':hour_avg_wd,'wd':wd_avg,'height':data.height.values})
+data_std['temp_std_low']=xr.DataArray(data=f_low_all,coords={'hour':hour_avg_wd,'wd':wd_avg,'height':data.height.values})
+data_std['temp_std_top']=xr.DataArray(data=f_top_all,coords={'hour':hour_avg_wd,'wd':wd_avg,'height':data.height.values})
+data_std['temp_std_qc']=data_std['temp_std_avg'].where(data_std['temp_std_top']-data_std['temp_std_low']<=max_unc_temp_std)
+
+#daily directional cycles of ti
+f_avg_all=np.zeros((len(hour_avg_wd),len(wd_avg),len(data.height)))
+f_low_all=np.zeros((len(hour_avg_wd),len(wd_avg),len(data.height)))
+f_top_all=np.zeros((len(hour_avg_wd),len(wd_avg),len(data.height)))
+for i_h in range(len(data.height)):
+    f_sel=ti.isel(height=i_h).values
+    wd_sel=data.wd.isel(height=i_h).values
+    real=~np.isnan(f_sel+wd_sel)
+    f_avg= stats.binned_statistic_2d(hour[real], wd[real], f_sel[real],statistic=lambda x: utl.filt_stat(x,np.nanmean,perc_lim=perc_lim),                             bins=[bin_hour_wd,bin_wd])[0]
+    f_low= stats.binned_statistic_2d(hour[real], wd[real], f_sel[real],statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=p_value/2*100),    bins=[bin_hour_wd,bin_wd])[0]
+    f_top= stats.binned_statistic_2d(hour[real], wd[real], f_sel[real],statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=(1-p_value/2)*100),bins=[bin_hour_wd,bin_wd])[0]
+
+    f_avg_all[:,:,i_h]=f_avg
+    f_low_all[:,:,i_h]=f_low
+    f_top_all[:,:,i_h]=f_top
+
+data_std['ti_avg']=xr.DataArray(data=f_avg_all,coords={'hour':hour_avg_wd,'wd':wd_avg,'height':data.height.values})
+data_std['ti_low']=xr.DataArray(data=f_low_all,coords={'hour':hour_avg_wd,'wd':wd_avg,'height':data.height.values})
+data_std['ti_top']=xr.DataArray(data=f_top_all,coords={'hour':hour_avg_wd,'wd':wd_avg,'height':data.height.values})
+data_std['ti_qc']=data_std['ti_avg'].where(data_std['ti_top']-data_std['ti_low']<=max_unc_ti)
+
 #%% Plots
 plt.close('all')
 
 #stability
-cmap=matplotlib.cm.get_cmap('coolwarm')
-colors = [cmap(i) for i in np.linspace(0,1,len(stab_class_uni))]
+cmap=matplotlib.cm.get_cmap('coolwarm_r')
+colors = [cmap(i) for i in np.linspace(0,1,len(bin_Ri)-1)]
 
-plt.figure(figsize=(16,8))
+plt.figure(figsize=(16,7))
 
 plt.subplot(1,2,1)
-N_tot=stats.binned_statistic(data['hour'].where(data['stab_class']!='null'),
-                             data['stab_class'].where(data['stab_class']!='null'),
-                             statistic='count',bins=np.arange(-0.5,24,1))[0]
+N_tot=stats.binned_statistic(data['hour'].where(~np.isnan(Ri)),
+                             Ri.where(~np.isnan(Ri)),
+                             statistic='count',bins=bin_hour_ws)[0]
 N_cum=0
-for s,c in zip(stab_class_uni,colors):
-    N=stats.binned_statistic(data['hour'].where(data['stab_class']==s),
-                             data['stab_class'].where(data['stab_class']==s),
-                             statistic='count',bins=np.arange(-0.5,24,1))[0]
-    plt.bar(np.arange(24),N/N_tot*100,label=s,bottom=N_cum,color=c)
+for s in stab_names:
+    i_Ri=stab_names[s]
+    sel_Ri=(Ri>=bin_Ri[i_Ri])*(Ri<bin_Ri[i_Ri+1])
+    N=stats.binned_statistic(data['hour'].where(sel_Ri),
+                             Ri.where(sel_Ri),
+                             statistic='count',bins=bin_hour_ws)[0]
+    plt.bar(hour_avg_ws,N/N_tot*100,label=s,bottom=N_cum,color=colors[i_Ri])
     N_cum+=N/N_tot*100
-plt.xticks(np.arange(0,24),rotation=60)         
+plt.xticks(np.arange(25),rotation=60)         
 plt.yticks(np.arange(0,101,25)) 
 plt.ylabel('Occurrence [%]')   
 plt.legend(draggable='True')
@@ -156,13 +177,14 @@ for h,c in zip(data_avg.height,colors):
     plt.plot(data_avg.hour,data_avg.temp_avg.sel(height=h),color=c,linewidth=2,label=r'$z='+str(h.values)+'$ m')
     plt.fill_between(data_avg.hour,data_avg.temp_low.sel(height=h), data_avg.temp_top.sel(height=h),color=c,alpha=0.25)
 plt.grid()
-plt.xticks(np.arange(0,24),rotation=60)     
+plt.xticks(np.arange(25),rotation=60)     
 plt.xlabel('Hour (UTC)')
 plt.ylabel(r'Daily-averaged $T$')
 plt.legend()
+plt.tight_layout()
 
 #windrose
-cmap=matplotlib.cm.get_cmap('plasma')
+cmap=matplotlib.cm.get_cmap('viridis')
 real=~np.isnan(ws+wd)
 ax = WindroseAxes.from_ax()
 ax.bar(wd[real], ws[real], normed=True,opening=0.8,cmap=cmap,edgecolor="white",bins=((0,2,4,6,8,10,12)))
@@ -174,3 +196,50 @@ for label in ax.get_yticklabels():
     label.set_bbox(dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.3',alpha=0.5))
 
 plt.legend()
+
+theta_plot=np.radians(np.arange(360))
+fig, axs = plt.subplots(1, 4, figsize=(18, 8), constrained_layout=True,subplot_kw={'projection': 'polar'})
+
+theta=np.radians(np.append(wd_avg,wd_avg[0]+360))
+for i_h in range(len(data.height)):
+    plt.sca(axs[i_h])
+    ax=axs[i_h]
+    f_plot_qc=np.vstack([data_std['temp_std_qc'].values[:,:,i_h].T,data_std['temp_std_qc'].values[:,0,i_h]]).T
+    f_plot=np.vstack([data_std['temp_std_avg'].values[:,:,i_h].T,data_std['temp_std_avg'].values[:,0,i_h]]).T
+    cf=plt.contourf(theta,hour_avg_wd,f_plot_qc,np.arange(0.1,0.31,0.01),extend='both',cmap='hot')
+    plt.contour(theta,hour_avg_wd,f_plot,np.arange(0.1,0.31,0.01),cmap='hot',alpha=1,linewidths=1)
+    plt.contour(theta,hour_avg_wd,f_plot_qc,np.arange(0.1,0.31,0.01),colors='k',alpha=0.5,linewidths=0.1)
+    ax.set_theta_zero_location('N')
+    ax.set_theta_direction(-1)
+    ax.set_rlim([0,22.5])
+    ax.set_yticklabels([])
+    ax.set_facecolor((0.8,0.8,0.8))
+    ax.set_xticks([0,np.pi/2,np.pi,np.pi/2*3], labels=['N','E','S','W'])
+    plt.plot(theta_plot,theta_plot*0+hour_sunrise,'.g',markersize=2)
+    plt.plot(theta_plot,theta_plot*0+hour_sunset,'.g',markersize=2)
+plt.tight_layout()
+cbar_ax = fig.add_axes([0.1, 0.1, 0.8, 0.03])  # spans most of the width
+cbar = fig.colorbar(cf, cax=cbar_ax, orientation='horizontal')
+cbar.set_label(r'$\sigma(T)$ [$^\circ$C]')
+
+fig, axs = plt.subplots(1, 4, figsize=(18, 8), constrained_layout=True,subplot_kw={'projection': 'polar'})
+for i_h in range(len(data.height)):
+    plt.sca(axs[i_h])
+    ax=axs[i_h]
+    f_plot_qc=np.vstack([data_std['ti_qc'].values[:,:,i_h].T,data_std['ti_qc'].values[:,0,i_h]]).T
+    f_plot=np.vstack([data_std['ti_avg'].values[:,:,i_h].T,data_std['ti_avg'].values[:,0,i_h]]).T
+    cf=plt.contourf(theta,hour_avg_wd,f_plot_qc,np.arange(10,41),extend='both',cmap='viridis')
+    plt.contour(theta,hour_avg_wd,f_plot,np.arange(10,41),cmap='viridis',alpha=1,linewidths=1)
+    plt.contour(theta,hour_avg_wd,f_plot_qc,np.arange(10,41),colors='k',alpha=0.5,linewidths=0.1)
+    ax.set_theta_zero_location('N')
+    ax.set_theta_direction(-1)
+    ax.set_rlim([0,22.5])
+    ax.set_yticklabels([])
+    ax.set_facecolor((0.8,0.8,0.8))
+    ax.set_xticks([0,np.pi/2,np.pi,np.pi/2*3], labels=['N','E','S','W'])
+    plt.plot(theta_plot,theta_plot*0+hour_sunrise,'.g',markersize=2)
+    plt.plot(theta_plot,theta_plot*0+hour_sunset,'.g',markersize=2)
+plt.tight_layout()
+cbar_ax = fig.add_axes([0.1, 0.1, 0.8, 0.03])  # spans most of the width
+cbar = fig.colorbar(cf, cax=cbar_ax, orientation='horizontal')
+cbar.set_label('TI [%]')
