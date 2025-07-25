@@ -84,13 +84,16 @@ def process_day(day,source,config):
             
             for f in files:
                 data=xr.open_dataset(f)
-            
-                #data availability
-                data_avail=(~np.isnan(data)).sum(dim='time')/len(data.time)*100
-                
+
                 #mean
+                data['U']=data.ws*np.cos(np.radians(270-data.wd))
+                data['V']=data.ws*np.sin(np.radians(270-data.wd))
+                data_avail=(~np.isnan(data)).sum(dim='time')/len(data.time)*100
                 data_avg=data.mean(dim='time')
                 data_avg=data_avg.where(data_avail>config['min_data_avail'])
+                
+                #wind direction
+                data_avg['wd']=(270-np.degrees(np.arctan2(data_avg['V'],data_avg['U'])))%360
                 
                 #std
                 data_std=data.std(dim='time')
