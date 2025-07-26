@@ -19,6 +19,7 @@ import matplotlib
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 18
+matplotlib.rcParams['savefig.dpi'] = 500
 
 warnings.filterwarnings('ignore')
 plt.close('all')
@@ -127,7 +128,7 @@ for i_h in range(len(data.height)):
     f_sel=ti.isel(height=i_h).values
     wd_sel=data.wd.isel(height=i_h).values
     real=~np.isnan(f_sel+wd_sel)
-    f_avg= stats.binned_statistic_2d(hour[real], wd[real], f_sel[real],statistic=lambda x: utl.filt_stat(x,np.nanmean,perc_lim=perc_lim),                             bins=[bin_hour_wd,bin_wd])[0]
+    f_avg= stats.binned_statistic_2d(hour[real], wd[real], f_sel[real],statistic=lambda x: utl.filt_stat(x,   np.nanmean,perc_lim=perc_lim),                          bins=[bin_hour_wd,bin_wd])[0]
     f_low= stats.binned_statistic_2d(hour[real], wd[real], f_sel[real],statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=p_value/2*100),    bins=[bin_hour_wd,bin_wd])[0]
     f_top= stats.binned_statistic_2d(hour[real], wd[real], f_sel[real],statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=(1-p_value/2)*100),bins=[bin_hour_wd,bin_wd])[0]
 
@@ -179,24 +180,11 @@ for h,c in zip(data_avg.height,colors):
 plt.grid()
 plt.xticks(np.arange(25),rotation=60)     
 plt.xlabel('Hour (UTC)')
-plt.ylabel(r'Daily-averaged $T$')
+plt.ylabel(r'$\overline{T}$ [$^\circ$C]')
 plt.legend()
 plt.tight_layout()
 
-#windrose
-cmap=matplotlib.cm.get_cmap('viridis')
-real=~np.isnan(ws+wd)
-ax = WindroseAxes.from_ax()
-ax.bar(wd[real], ws[real], normed=True,opening=0.8,cmap=cmap,edgecolor="white",bins=((0,2,4,6,8,10,12)))
-ax.set_rgrids(np.arange(0,12,2), np.arange(0,12,2))
-for label in ax.get_yticklabels():
-    label.set_backgroundcolor('white')   # Set background color
-    label.set_color('black')             # Set text color
-    label.set_fontsize(18)               # Optional: tweak size
-    label.set_bbox(dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.3',alpha=0.5))
-
-plt.legend()
-
+#wd-hour temperature std
 theta_plot=np.radians(np.arange(360))
 fig, axs = plt.subplots(1, 4, figsize=(18, 8), constrained_layout=True,subplot_kw={'projection': 'polar'})
 
@@ -214,14 +202,16 @@ for i_h in range(len(data.height)):
     ax.set_rlim([0,22.5])
     ax.set_yticklabels([])
     ax.set_facecolor((0.8,0.8,0.8))
+    ax.grid(False)
     ax.set_xticks([0,np.pi/2,np.pi,np.pi/2*3], labels=['N','E','S','W'])
     plt.plot(theta_plot,theta_plot*0+hour_sunrise,'.g',markersize=2)
     plt.plot(theta_plot,theta_plot*0+hour_sunset,'.g',markersize=2)
 plt.tight_layout()
 cbar_ax = fig.add_axes([0.1, 0.1, 0.8, 0.03])  # spans most of the width
-cbar = fig.colorbar(cf, cax=cbar_ax, orientation='horizontal')
-cbar.set_label(r'$\sigma(T)$ [$^\circ$C]')
+cbar = fig.colorbar(cf, cax=cbar_ax, orientation='horizontal',ticks=np.arange(0.1,0.31,0.05))
+cbar.set_label(r'$\overline{T^{\prime 2}}$ [$^\circ$C]')
 
+#wd-hour TI
 fig, axs = plt.subplots(1, 4, figsize=(18, 8), constrained_layout=True,subplot_kw={'projection': 'polar'})
 for i_h in range(len(data.height)):
     plt.sca(axs[i_h])
@@ -236,10 +226,27 @@ for i_h in range(len(data.height)):
     ax.set_rlim([0,22.5])
     ax.set_yticklabels([])
     ax.set_facecolor((0.8,0.8,0.8))
+    ax.grid(False)
     ax.set_xticks([0,np.pi/2,np.pi,np.pi/2*3], labels=['N','E','S','W'])
-    plt.plot(theta_plot,theta_plot*0+hour_sunrise,'.g',markersize=2)
-    plt.plot(theta_plot,theta_plot*0+hour_sunset,'.g',markersize=2)
+    plt.plot(theta_plot,theta_plot*0+hour_sunrise,'.r',markersize=2)
+    plt.plot(theta_plot,theta_plot*0+hour_sunset,'.r',markersize=2)
 plt.tight_layout()
 cbar_ax = fig.add_axes([0.1, 0.1, 0.8, 0.03])  # spans most of the width
-cbar = fig.colorbar(cf, cax=cbar_ax, orientation='horizontal')
+cbar = fig.colorbar(cf, cax=cbar_ax, orientation='horizontal',ticks=np.arange(10,41,5))
 cbar.set_label('TI [%]')
+
+#windrose
+matplotlib.rcParams['font.size'] = 22
+cmap=matplotlib.cm.get_cmap('viridis')
+real=~np.isnan(ws+wd)
+ax = WindroseAxes.from_ax()
+ax.bar(wd[real], ws[real], normed=True,opening=0.8,cmap=cmap,edgecolor="white",bins=((0,2,4,6,8,10,12)))
+ax.set_rgrids(np.arange(0,12,2), np.arange(0,12,2))
+ax.set_xticks([0,np.pi/2,np.pi,np.pi/2*3], labels=['N','E','S','W'])
+for label in ax.get_yticklabels():
+    label.set_backgroundcolor('white')   # Set background color
+    label.set_color('black')             # Set text color
+    label.set_fontsize(18)               # Optional: tweak size
+    label.set_bbox(dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.3',alpha=0.5))
+
+plt.legend(draggable=True)
