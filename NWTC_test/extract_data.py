@@ -70,13 +70,17 @@ for date in dates:
     files_sel=glob.glob(config['source_met_a1'].replace('*',f'*{date}*'))
     Data_met=xr.open_mfdataset(files_sel)
     
+    #wind direction
+    Data_met['U']=Data_met.ws*np.cos(np.radians(270-Data_met.wd))
+    Data_met['V']=Data_met.ws*np.sin(np.radians(270-Data_met.wd))
+    
     if "air_temp_rec" in Data_met.data_vars:
         Data_met=Data_met.rename({"air_temp":"temperature_abs"}).rename({"air_temp_rec":"temperature"})
         
     #sampling rate matching
     dt_met=np.median(np.diff(Data_met.time))/np.timedelta64(1,'s')
     Data_met_res=Data_met.rolling(time=int(sampling_rate/dt_met), center=True).mean()
-        
+
     #time interpolation
     tnum_met=(Data_met_res.time-np.datetime64('1970-01-01T00:00:00'))/np.timedelta64(1,'s')
     time_sel=(tnum_trp>=tnum_met.values[0])*(tnum_trp<=tnum_met.values[-1])
@@ -84,6 +88,9 @@ for date in dates:
         time_diff=tnum_met.interp(time=time_trp[time_sel],method='nearest')-tnum_trp[time_sel]
         Data_met_int=Data_met_res.interp(time=time_trp[time_sel])
         Data_met_int['time_diff']=time_diff
+        
+        #reintroduce wind direcion
+        Data_met_int['wd']=(270-np.degrees(np.arctan2(Data_met_int['V'],Data_met_int['U'])))%360
         
         #save temp file
         Data_met_int.compute().to_netcdf(os.path.join(cd,'data',f'{date}.met.a1.{unit}.temp.nc'))

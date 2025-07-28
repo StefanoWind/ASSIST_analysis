@@ -19,7 +19,7 @@ import yaml
 import matplotlib
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 14
+matplotlib.rcParams['font.size'] = 16
 matplotlib.rcParams['savefig.dpi'] = 500
 
 warnings.filterwarnings('ignore')

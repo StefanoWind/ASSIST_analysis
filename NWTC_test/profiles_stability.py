@@ -9,6 +9,7 @@ import pandas as pd
 import sys
 sys.path.append(os.path.join(cd,'../utils'))
 import xarray as xr
+from scipy import stats
 import matplotlib
 from matplotlib import pyplot as plt
 import utils as utl
@@ -46,8 +47,8 @@ var_met='temperature'#selected temperature variable in M5 data
 
 #stats
 bin_Ri=np.array([-100,-0.25,-0.03,0.03,0.25,100])#bins in Ri [mix of Hamilton 2019 and Aitken 2014]
-
 p_value=0.05
+perc_lim=[5,95]
 
 #graphics
 cmap = plt.get_cmap("coolwarm")
@@ -125,85 +126,95 @@ f_m2=f_m2.where(real)
 #bias correction
 f_trp_bc=f_trp-Data_trp.bias
 
+#Ri
 Ri=met.Ri_3_122.interp(time=Data_trp.time)
 
-#remove common nans
-real=np.isnan(f_trp).sum(dim="height")+np.isnan(f_met).sum(dim="height")==0
-f_trp=f_trp[real]
-f_met=f_met[real]
 
 #stats TROPoe
-f_trp_avg=np.zeros((len(f_trp.height),len(bin_Ri)-1))
-f_trp_low=np.zeros((len(f_trp.height),len(bin_Ri)-1))
-f_trp_top=np.zeros((len(f_trp.height),len(bin_Ri)-1))
-i_Ri=0
-for Ri1,Ri2 in zip(bin_Ri[:-1],bin_Ri[1:]):
-    sel_Ri=(Ri>=Ri1)*(Ri<Ri2)
-    for i_h in range(len(f_trp.height)):
-        f_sel=f_trp.isel(height=i_h).where(sel_Ri).values
-        f_trp_avg[i_h,i_Ri]=utl.filt_stat(f_sel,np.mean)
-        f_trp_low[i_h,i_Ri]=utl.filt_BS_stat(f_sel,np.mean,p_value/2*100)
-        f_trp_top[i_h,i_Ri]=utl.filt_BS_stat(f_sel,np.mean,(1-p_value/2)*100)
-    i_Ri+=1
-
+f_avg=np.zeros((len(f_trp.height),len(bin_Ri)-1))
+f_low=np.zeros((len(f_trp.height),len(bin_Ri)-1))
+f_top=np.zeros((len(f_trp.height),len(bin_Ri)-1))
+for i_h in range(len(f_trp.height)):
+    f_sel=f_trp.isel(height=i_h).values
+    real=~np.isnan(Ri.values+f_sel)
+    f_avg[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real],
+                                        statistic=lambda x: utl.filt_stat(x,   np.nanmean,perc_lim=perc_lim),
+                                        bins=bin_Ri)[0]
+    f_low[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real],
+                                        statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=p_value/2*100), 
+                                        bins=bin_Ri)[0]
+    f_top[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real],
+                                        statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=(1-p_value/2)*100), 
+                                        bins=bin_Ri)[0]
+    
 trp_stats=xr.Dataset()
-trp_stats['f_avg']=xr.DataArray(data=f_trp_avg,coords={'height':f_trp.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
-trp_stats['f_low']=xr.DataArray(data=f_trp_low,coords={'height':f_trp.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
-trp_stats['f_top']=xr.DataArray(data=f_trp_top,coords={'height':f_trp.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
+trp_stats['f_avg']=xr.DataArray(data=f_avg,coords={'height':f_trp.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
+trp_stats['f_low']=xr.DataArray(data=f_low,coords={'height':f_trp.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
+trp_stats['f_top']=xr.DataArray(data=f_top,coords={'height':f_trp.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
 
 #stats TROPoe bias corrected
-f_trp_bc_avg=np.zeros((len(f_trp.height),len(bin_Ri)-1))
-f_trp_bc_low=np.zeros((len(f_trp.height),len(bin_Ri)-1))
-f_trp_bc_top=np.zeros((len(f_trp.height),len(bin_Ri)-1))
-i_Ri=0
-for Ri1,Ri2 in zip(bin_Ri[:-1],bin_Ri[1:]):
-    sel_Ri=(Ri>=Ri1)*(Ri<Ri2)
-    for i_h in range(len(f_trp.height)):
-        f_sel=f_trp_bc.isel(height=i_h).where(sel_Ri).values
-        f_trp_bc_avg[i_h,i_Ri]=utl.filt_stat(f_sel,np.mean)
-        f_trp_bc_low[i_h,i_Ri]=utl.filt_BS_stat(f_sel,np.mean,p_value/2*100)
-        f_trp_bc_top[i_h,i_Ri]=utl.filt_BS_stat(f_sel,np.mean,(1-p_value/2)*100)
-    i_Ri+=1
+f_avg=np.zeros((len(f_trp.height),len(bin_Ri)-1))
+f_low=np.zeros((len(f_trp.height),len(bin_Ri)-1))
+f_top=np.zeros((len(f_trp.height),len(bin_Ri)-1))
+for i_h in range(len(f_trp.height)):
+    f_sel=f_trp_bc.isel(height=i_h).values
+    real=~np.isnan(Ri.values+f_sel)
+    f_avg[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real],
+                                        statistic=lambda x: utl.filt_stat(x,   np.nanmean,perc_lim=perc_lim),
+                                        bins=bin_Ri)[0]
+    f_low[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real],
+                                        statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=p_value/2*100), 
+                                        bins=bin_Ri)[0]
+    f_top[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real],
+                                        statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=(1-p_value/2)*100), 
+                                        bins=bin_Ri)[0]
         
-trp_stats['f_bc_avg']=xr.DataArray(data=f_trp_bc_avg,coords={'height':f_trp.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
-trp_stats['f_bc_low']=xr.DataArray(data=f_trp_bc_low,coords={'height':f_trp.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
-trp_stats['f_bc_top']=xr.DataArray(data=f_trp_bc_top,coords={'height':f_trp.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
+trp_stats['f_bc_avg']=xr.DataArray(data=f_avg,coords={'height':f_trp.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
+trp_stats['f_bc_low']=xr.DataArray(data=f_low,coords={'height':f_trp.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
+trp_stats['f_bc_top']=xr.DataArray(data=f_top,coords={'height':f_trp.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
 
 #stats met tower
-f_met_avg=np.zeros((len(f_met.height),len(bin_Ri)-1))
-f_met_low=np.zeros((len(f_met.height),len(bin_Ri)-1))
-f_met_top=np.zeros((len(f_met.height),len(bin_Ri)-1))
-i_Ri=0
-for Ri1,Ri2 in zip(bin_Ri[:-1],bin_Ri[1:]):
-    sel_Ri=(Ri>=Ri1)*(Ri<Ri2)
-    for i_h in range(len(f_met.height)):
-        f_sel=f_met.isel(height=i_h).where(sel_Ri).values
-        f_met_avg[i_h,i_Ri]=utl.filt_stat(f_sel,np.nanmean)
-        f_met_low[i_h,i_Ri]=utl.filt_BS_stat(f_sel,np.nanmean,p_value/2*100)
-        f_met_top[i_h,i_Ri]=utl.filt_BS_stat(f_sel,np.nanmean,(1-p_value/2)*100)
-    i_Ri+=1
+f_avg=np.zeros((len(f_met.height),len(bin_Ri)-1))
+f_low=np.zeros((len(f_met.height),len(bin_Ri)-1))
+f_top=np.zeros((len(f_met.height),len(bin_Ri)-1))
+for i_h in range(len(f_met.height)):
+    f_sel=f_met.isel(height=i_h).values
+    real=~np.isnan(Ri.values+f_sel)
+    f_avg[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real],
+                                        statistic=lambda x: utl.filt_stat(x,   np.nanmean,perc_lim=perc_lim),
+                                        bins=bin_Ri)[0]
+    f_low[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real],
+                                        statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=p_value/2*100), 
+                                        bins=bin_Ri)[0]
+    f_top[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real],
+                                        statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=(1-p_value/2)*100), 
+                                        bins=bin_Ri)[0]
 met_stats=xr.Dataset()
-met_stats['f_avg']=xr.DataArray(data=f_met_avg,coords={'height':f_met.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
-met_stats['f_low']=xr.DataArray(data=f_met_low,coords={'height':f_met.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
-met_stats['f_top']=xr.DataArray(data=f_met_top,coords={'height':f_met.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
+met_stats['f_avg']=xr.DataArray(data=f_avg,coords={'height':f_met.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
+met_stats['f_low']=xr.DataArray(data=f_low,coords={'height':f_met.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
+met_stats['f_top']=xr.DataArray(data=f_top,coords={'height':f_met.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
 
 #stats M2
-f_m2_avg=np.zeros((len(f_m2.height),len(bin_Ri)-1))
-f_m2_low=np.zeros((len(f_m2.height),len(bin_Ri)-1))
-f_m2_top=np.zeros((len(f_m2.height),len(bin_Ri)-1))
-i_Ri=0
-for Ri1,Ri2 in zip(bin_Ri[:-1],bin_Ri[1:]):
-    sel_Ri=(Ri>=Ri1)*(Ri<Ri2)
-    for i_h in range(len(f_m2.height)):
-        f_sel=f_m2.isel(height=i_h).where(sel_Ri).values
-        f_m2_avg[i_h,i_Ri]=utl.filt_stat(f_sel,np.nanmean)
-        f_m2_low[i_h,i_Ri]=utl.filt_BS_stat(f_sel,np.nanmean,p_value/2*100)
-        f_m2_top[i_h,i_Ri]=utl.filt_BS_stat(f_sel,np.nanmean,(1-p_value/2)*100)
-    i_Ri+=1
+f_avg=np.zeros((len(f_m2.height),len(bin_Ri)-1))
+f_low=np.zeros((len(f_m2.height),len(bin_Ri)-1))
+f_top=np.zeros((len(f_m2.height),len(bin_Ri)-1))
+for i_h in range(len(f_m2.height)):
+    f_sel=f_m2.isel(height=i_h).values
+    real=~np.isnan(Ri.values+f_sel)
+    f_avg[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real],
+                                        statistic=lambda x: utl.filt_stat(x,   np.nanmean,perc_lim=perc_lim),
+                                        bins=bin_Ri)[0]
+    f_low[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real],
+                                        statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=p_value/2*100), 
+                                        bins=bin_Ri)[0]
+    f_top[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real],
+                                        statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=(1-p_value/2)*100), 
+                                        bins=bin_Ri)[0]
+    
 m2_stats=xr.Dataset()
-m2_stats['f_avg']=xr.DataArray(data=f_m2_avg,coords={'height':f_m2.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
-m2_stats['f_low']=xr.DataArray(data=f_m2_low,coords={'height':f_m2.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
-m2_stats['f_top']=xr.DataArray(data=f_m2_top,coords={'height':f_m2.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
+m2_stats['f_avg']=xr.DataArray(data=f_avg,coords={'height':f_m2.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
+m2_stats['f_low']=xr.DataArray(data=f_low,coords={'height':f_m2.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
+m2_stats['f_top']=xr.DataArray(data=f_top,coords={'height':f_m2.height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
 
 #%% Plots
 plt.close("all")
@@ -230,10 +241,48 @@ for s in stab_names:
                                       trp_stats.f_top.isel(Ri=i_Ri),
                                       color='r',alpha=0.25)
     
-    # plt.plot(trp_stats.f_bc_avg.isel(Ri=i_Ri),trp_stats.height,'.-b',label='TROPoe (bias-corrected)')
-    # plt.fill_betweenx(trp_stats.height,trp_stats.f_bc_low.isel(Ri=i_Ri),
-    #                                   trp_stats.f_bc_top.isel(Ri=i_Ri),
-    #                                   color='b',alpha=0.25)
+    plt.plot(trp_stats.f_bc_avg.isel(Ri=i_Ri),trp_stats.height,'.-b',label='TROPoe (bias-corrected)')
+    plt.fill_betweenx(trp_stats.height,trp_stats.f_bc_low.isel(Ri=i_Ri),
+                                      trp_stats.f_bc_top.isel(Ri=i_Ri),
+                                      color='b',alpha=0.25)
+    
+    plt.plot(-g/cp*f_trp.height+met_stats.f_avg.isel(Ri=i_Ri).isel(height=0),trp_stats.height,'--k')
+    
+    plt.xlim([15,25])
+    plt.grid()
+    plt.xlabel(r'$T$ [$^\circ$C]')
+    if i_Ri==0:
+        plt.ylabel(r'$z$ [m]')
+    
+    plt.title(s)
+    
+    
+    ctr+=1
+plt.tight_layout()
+plt.legend()
+
+
+#average profiles
+plt.figure(figsize=(18,4))
+
+ctr=1
+for s in stab_names:
+    i_Ri=stab_names[s]
+    plt.subplot(1,len(stab_names),ctr)
+    plt.plot(met_stats.f_avg.isel(Ri=i_Ri),met_stats.height,'.-k',label='Met (M5)')
+    plt.fill_betweenx(met_stats.height,met_stats.f_low.isel(Ri=i_Ri),
+                                      met_stats.f_top.isel(Ri=i_Ri),
+                                      color='k',alpha=0.25)
+    
+    plt.plot(m2_stats.f_avg.isel(Ri=i_Ri),m2_stats.height,'.-g',label='Met (M2)')
+    plt.fill_betweenx(m2_stats.height,m2_stats.f_low.isel(Ri=i_Ri),
+                                      m2_stats.f_top.isel(Ri=i_Ri),
+                                      color='g',alpha=0.25)
+    
+    plt.plot(trp_stats.f_avg.isel(Ri=i_Ri),trp_stats.height,'.-r',label='TROPoe')
+    plt.fill_betweenx(trp_stats.height,trp_stats.f_low.isel(Ri=i_Ri),
+                                      trp_stats.f_top.isel(Ri=i_Ri),
+                                      color='r',alpha=0.25)
     
     plt.plot(-g/cp*f_trp.height+met_stats.f_avg.isel(Ri=i_Ri).isel(height=0),trp_stats.height,'--k')
     

@@ -32,7 +32,7 @@ sources={'ASSIST10':'data/awaken/nwtc.assist.tropoe.z01.c1/*nc',
 #stats
 max_height=2#[km] maximum height where data is selcted
 p_value=0.05#for CI
-perc_lim=[0.1,99.9]#percentile limits
+perc_lim=[5,95]#percentile limits
 
 #graphics
 height_sel=[1000,100,10]#[m]
@@ -79,37 +79,40 @@ else:
     Diff=xr.open_dataset(os.path.join(cd,'data',f'DT{units[1]}-{units[0]}.nc'))
 
 #mean error
-bias_avg=xr.apply_ufunc(np.nanmean,Diff['DT'],
+bias_avg=xr.apply_ufunc(utl.filt_stat,Diff['DT'],
                         input_core_dims=[["time"]],  
+                        kwargs={"func": np.nanmean, 'perc_lim': perc_lim},
                         vectorize=True)
 
 bias_low=xr.apply_ufunc(utl.filt_BS_stat,Diff['DT'],
-                    kwargs={"func": np.nanmean,'p_value':p_value*100/2,'perc_lim': [0,100]},
+                    kwargs={"func": np.nanmean,'p_value':p_value*100/2,'perc_lim': perc_lim},
                     input_core_dims=[["time"]],  
                     vectorize=True)
 
 bias_top=xr.apply_ufunc(utl.filt_BS_stat,Diff['DT'],
-                    kwargs={"func": np.nanmean,'p_value':(1-p_value/2)*100,'perc_lim': [0,100]},
+                    kwargs={"func": np.nanmean,'p_value':(1-p_value/2)*100,'perc_lim': perc_lim},
                     input_core_dims=[["time"]],  
                     vectorize=True)
 
 #error stdev
-estd_avg=xr.apply_ufunc(np.nanstd,Diff['DT'],
+rmsd_avg=xr.apply_ufunc(utl.filt_stat,Diff['DT']**2,
                     input_core_dims=[["time"]],  
-                    vectorize=True)
+                    kwargs={"func": np.nanmean, 'perc_lim': [0,100]},
+                    vectorize=True)**0.5
 
-estd_low=xr.apply_ufunc(utl.filt_BS_stat,Diff['DT'],
-                    kwargs={"func": np.nanstd,'p_value':p_value*100/2,'perc_lim': [0,100]},
+rmsd_low=xr.apply_ufunc(utl.filt_BS_stat,Diff['DT']**2,
+                    kwargs={"func": np.nanmean,'p_value':p_value*100/2,'perc_lim': [0,100]},
                     input_core_dims=[["time"]],  
-                    vectorize=True)
+                    vectorize=True)**0.5
 
-estd_top=xr.apply_ufunc(utl.filt_BS_stat,Diff['DT'],
-                    kwargs={"func": np.nanstd,'p_value':(1-p_value/2)*100,'perc_lim': [0,100]},
+rmsd_top=xr.apply_ufunc(utl.filt_BS_stat,Diff['DT']**2,
+                    kwargs={"func": np.nanmean,'p_value':(1-p_value/2)*100,'perc_lim': [0,100]},
                     input_core_dims=[["time"]],  
-                    vectorize=True)
+                    vectorize=True)**0.5
 
-estd_th=xr.apply_ufunc(np.nanmean,Diff['sigmaDT'],
+rmsd_th=xr.apply_ufunc(utl.filt_stat,Diff['sigmaDT'],
                     input_core_dims=[["time"]],  
+                    kwargs={"func": np.nanmean, 'perc_lim': perc_lim},
                     vectorize=True)
 
 #probability of exceedence
@@ -144,18 +147,18 @@ for h in height_sel:
     plt.plot([-0.025,0.025],[h,h],'--b')
 plt.xlim([-0.025,0.025])
 plt.ylim([0,max_height*1000])
-plt.xlabel(r'Mean $\Delta \hat{T}$ [$^\circ$C]')
+plt.xlabel(r'Bias of $\Delta \hat{T}$ [$^\circ$C]')
 plt.ylabel('$z$ [m]')
 plt.grid()
 plt.legend(draggable=True)
 
 ax=fig.add_subplot(gs[0,1])
-plt.plot(estd_avg,height,'k')
-plt.fill_betweenx(height, estd_low,estd_top,color='k',alpha=0.25,linewidth=2)
-plt.plot(estd_th,height,'r',linewidth=2)
+plt.plot(rmsd_avg,height,'k')
+plt.fill_betweenx(height, rmsd_low,rmsd_top,color='k',alpha=0.25,linewidth=2)
+plt.plot(rmsd_th,height,'r',linewidth=2)
 for h in height_sel:
     plt.plot([0,0.6],[h,h],'--b')
-plt.xlabel(r'St.dev. of $\Delta \hat{T}$ [$^\circ$C]')
+plt.xlabel(r'RMSD of $\Delta \hat{T}$ [$^\circ$C]')
 plt.xlim([0,0.6])
 plt.ylim([0,max_height*1000])
 ax.set_yticklabels([])
