@@ -14,6 +14,7 @@ from matplotlib import pyplot as plt
 from matplotlib.ticker import NullFormatter
 import warnings
 import glob
+from scipy import stats
 import yaml
 import matplotlib
 matplotlib.rcParams['font.family'] = 'serif'
@@ -27,7 +28,7 @@ plt.close('all')
 #%% Inputs
 source_met_sta=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')#source of met stats
 source_config=os.path.join(cd,'configs','config.yaml')
-source_waked=os.path.join(cd,'data/turbine_wakes.nc')
+source_waked=os.path.join(cd,'data/turbine_wakes.nc')#source of turbine wakes data
 
 #site
 units=['ASSIST10','ASSIST11']#assist ids
@@ -45,16 +46,17 @@ max_height=200#[m] for data selection
 max_f=40#[C] max threshold of selected variable
 min_f=-5#[C] min threshold of selected variable
 max_time_diff=10#[s] maximum difference in time between met and TROPoe
-wd_lim=10#[deg] maximum misalignment
+wd_lim=20#[deg] maximum misalignment
 bin_space=np.arange(0,550,50)#bins of spacing
-bin_Ri=np.array([-10,-0.25,-0.01,0.01,0.25,10])#bins in Ri
+bin_Ri=np.array([-100,-0.25,-0.03,0.03,0.25,100])#bins in Ri [mix of Hamilton 2019 and Aitken 2014]
 max_ti=50#[%] maximum TI for Taylor frozen ot be valid
 min_N=10#minimum number of points for stats
-min_std=10**-2#[C]standard deviation floor
+perc_lim=[5,95]#[%] percentile filter limit
 
 #graphics
 stab_names={'S':4,'NS':3,'N':2,'NU':1,'U':0}
 unit_sel='ASSIST11'
+min_std=1.5*10**-2#[C] standard deviation floor
 
 #%% Initialization
 #config
@@ -105,7 +107,7 @@ for unit in units:
     Data_trp['waked']=waked[site_trp[unit]].interp(time=Data_trp.time)
     f_trp=Data_trp[var_trp].where(Data_trp['waked'].sum(dim='turbine')==0).sel(height=slice(0,max_height))
     sigma_trp=Data_trp[f"sigma_{var_trp}"].where(Data_trp['waked'].sum(dim='turbine')==0).sel(height=slice(0,max_height))
-    print(f"{int(np.sum(Data_trp['waked'].sum(dim='turbine')>0))} wake events at Site 3.2 excluded")
+    print(f"{int(np.sum(Data_trp['waked'].sum(dim='turbine')>0))} wake events at {site_trp[unit]} excluded")
     
     Data_met['waked']=waked['M5'].interp(time=Data_met.time)
     f_met=Data_met[var_met].where(Data_met['waked'].sum(dim='turbine')==0).sel(height=slice(0,max_height))
@@ -137,7 +139,7 @@ for unit in units:
     Ri=Data_met_sta.Ri_3_122.interp(time=Data_trp.time)
     
     D_T=Data_met_sta[var_sf].interp(time=Data_trp.time)**0.5
-    space_lag=D_T.lag*ws
+    space_lag=(D_T.lag*ws).transpose('time', 'lag', 'height')
     
     #alignment
     ang_diff1=((wd - wd_align[unit] + 180) % 360) - 180
@@ -146,27 +148,26 @@ for unit in units:
     diff_sel=diff.where(sel_aligned).where(ti<=max_ti)
     D_T_sel=D_T.where(sel_aligned).where(ti<=max_ti)
     
-    #structure function statistics
+    # #structure function statistics
     f_avg=np.zeros((len(height),len(bin_space)-1,len(bin_Ri)-1))
     f_low=np.zeros((len(height),len(bin_space)-1,len(bin_Ri)-1))
     f_top=np.zeros((len(height),len(bin_space)-1,len(bin_Ri)-1))
-    i_Ri=0
-    for Ri1,Ri2 in zip(bin_Ri[:-1],bin_Ri[1:]):
-        sel_Ri=(Ri>=Ri1)*(Ri<Ri2)
-        f_sel0=D_T_sel.where(sel_Ri)
-        for i_h in range(len(height)):
-            i_s=0
-            for s1,s2 in zip(bin_space[:-1],bin_space[1:]):
-                sel_s=(space_lag.isel(height=i_h)>=s1)*(space_lag.isel(height=i_h)<s2)
-            
-                f_sel=f_sel0.isel(height=i_h).where(sel_s).values.ravel()
-                f_avg[i_h,i_s,i_Ri]=utl.filt_stat(f_sel,np.nanmean)
-                f_low[i_h,i_s,i_Ri]=utl.filt_BS_stat(f_sel,np.nanmean,p_value/2*100,min_N=min_N)
-                f_top[i_h,i_s,i_Ri]=utl.filt_BS_stat(f_sel,np.nanmean,(1-p_value/2)*100,min_N=min_N)
-                i_s+=1
-        i_Ri+=1
-        print(f'Structure function at Ri bin {i_Ri} done')
-        
+    
+    RI=Ri.expand_dims({'lag':D_T.lag.values}).transpose('time','lag').values
+    for i_h in range(len(height)):
+        f_sel=D_T_sel.isel(height=i_h).values
+        space_sel=space_lag.isel(height=i_h).values
+        real=~np.isnan(RI+space_sel+f_sel)
+        f_avg[i_h,:,:]= stats.binned_statistic_2d(space_sel[real], RI[real], f_sel[real],
+                                                  statistic=lambda x: utl.filt_stat(x,   np.nanmean,perc_lim=perc_lim),
+                                                  bins=[bin_space,bin_Ri])[0]
+        f_low[i_h,:,:]= stats.binned_statistic_2d(space_sel[real], RI[real], f_sel[real],
+                                                  statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=p_value/2*100), 
+                                                  bins=[bin_space,bin_Ri])[0]
+        f_top[i_h,:,:]= stats.binned_statistic_2d(space_sel[real], RI[real], f_sel[real],
+                                                  statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=perc_lim,p_value=(1-p_value/2)*100), 
+                                                  bins=[bin_space,bin_Ri])[0]
+   
     f_avg[np.isnan(f_top-f_low)]=np.nan
     D_avg[unit]=xr.DataArray(f_avg,coords={'height':height,
                                      'space':(bin_space[1:]+bin_space[:-1])/2,
@@ -184,19 +185,19 @@ for unit in units:
     f_avg=np.zeros((len(height),len(bin_Ri)-1))
     f_low=np.zeros((len(height),len(bin_Ri)-1))
     f_top=np.zeros((len(height),len(bin_Ri)-1))      
-    i_Ri=0
-    for Ri1,Ri2 in zip(bin_Ri[:-1],bin_Ri[1:]):
-        sel_Ri=(Ri>=Ri1)*(Ri<Ri2)
-        f_sel0=diff_sel.where(sel_Ri)
-        for i_h in range(len(height)):
-            f_sel=f_sel0.isel(height=i_h).values
-            f_avg[i_h,i_Ri]=utl.filt_stat(f_sel**2,np.nanmean,perc_lim=[0,100])**0.5
-            f_low[i_h,i_Ri]=utl.filt_BS_stat(f_sel**2,np.nanmean,p_value/2*100,perc_lim=[0,100],min_N=min_N)**0.5
-            f_top[i_h,i_Ri]=utl.filt_BS_stat(f_sel**2,np.nanmean,(1-p_value/2)*100,perc_lim=[0,100],min_N=min_N)**0.5
 
-        i_Ri+=1
-        print(f'RMSD for Ri bin {i_Ri} done')
-    
+    for i_h in range(len(height)):
+        f_sel=diff_sel.isel(height=i_h).values
+        real=~np.isnan(Ri.values+f_sel)
+        f_avg[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real]**2,
+                                            statistic=lambda x: utl.filt_stat(x,   np.nanmean,perc_lim=[0,100]),
+                                            bins=bin_Ri)[0]**0.5
+        f_low[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real]**2,
+                                            statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=[0,100],p_value=p_value/2*100), 
+                                            bins=bin_Ri)[0]**0.5
+        f_top[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real]**2,
+                                            statistic=lambda x: utl.filt_BS_stat(x,np.nanmean,perc_lim=[0,100],p_value=(1-p_value/2)*100), 
+                                            bins=bin_Ri)[0]**0.5
     f_avg[np.isnan(f_top-f_low)]=np.nan
     std_avg[unit]=xr.DataArray(f_avg,coords={'height':height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
     std_low[unit]=xr.DataArray(f_low,coords={'height':height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
@@ -204,21 +205,16 @@ for unit in units:
     
     #tropoe uncertainty statistics
     f_avg=np.zeros((len(height),len(bin_Ri)-1))
-    i_Ri=0
-    for Ri1,Ri2 in zip(bin_Ri[:-1],bin_Ri[1:]):
-        sel_Ri=(Ri>=Ri1)*(Ri<Ri2)
-        f_sel0=sigma_trp.where(sel_Ri)
-        for i_h in range(len(height)):
-            f_sel=f_sel0.isel(height=i_h).values
-            
-            if np.sum(~np.isnan(f_sel))>=min_N:
-                f_avg[i_h,i_Ri]=utl.filt_stat(f_sel,np.nanmean)
-            else:
-                f_avg[i_h,i_Ri]=np.nan
+    f_low=np.zeros((len(height),len(bin_Ri)-1))
+    f_top=np.zeros((len(height),len(bin_Ri)-1))      
 
-        i_Ri+=1
-        print(f'sigma_trp for Ri bin {i_Ri} done')
-    
+    for i_h in range(len(height)):
+        f_sel=sigma_trp.isel(height=i_h).values
+        real=~np.isnan(Ri.values+f_sel)
+        f_avg[i_h,:]=stats.binned_statistic(Ri.values[real],f_sel[real]**2,
+                                            statistic=lambda x: utl.filt_stat(x,   np.nanmean,perc_lim=[0,100]),
+                                            bins=bin_Ri)[0]**0.5
+        
     f_avg[np.isnan(f_top-f_low)]=np.nan
     std_trp_avg[unit]=xr.DataArray(f_avg,coords={'height':height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
    

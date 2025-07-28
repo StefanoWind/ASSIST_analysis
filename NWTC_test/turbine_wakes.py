@@ -20,9 +20,9 @@ matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 12
 
 #%% Inputs
-source_turbines={'GE1.5':  'data/nwtc/scada/ge1.5.csv',
+source_turbines={'GE1.5':  'data/nwtc/scada/ge1.5_v2.csv',
                  'SGRE2.3':'data/nwtc/scada/sgre2.3.csv',
-                 'SGRE2.0':'data/nwtc/scada/sgre2.0.csv'}#sources of SCADA power
+                 'SGRE2.0':'data/nwtc/scada/sgre2.0_v2.csv'}#sources of SCADA power
 
 source_met=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')#source of met stats
 
@@ -68,7 +68,7 @@ wd=met.wd.sel(height=height_sel)
 power=xr.Dataset()
 for turbine in turbines:
     power_raw=pd.read_csv(source_turbines[turbine])
-    power_time=[np.datetime64(pd.Timestamp(t, tz=timezone).tz_convert("UTC")) for t in power_raw['ts']]
+    power_time=[np.datetime64(pd.Timestamp(t, tz=timezone).tz_convert("UTC")) for t in power_raw['Timestamp']]
     power_power=[np.max([-np.float64(str(p).replace('kW','')),0]) for p in power_raw.iloc[:,-1].values]
     power0=xr.DataArray(data=power_power,coords={'time':power_time})
     power[turbine]=power0.interp(time=wd.time)

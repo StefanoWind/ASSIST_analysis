@@ -45,7 +45,7 @@ var_trp='temperature'
 var_met='temperature'#selected temperature variable in M5 data
 
 #stats
-bin_Ri=np.array([-10,-0.25,-0.01,0.01,0.25,10])#bins in Ri
+bin_Ri=np.array([-100,-0.25,-0.03,0.03,0.25,100])#bins in Ri [mix of Hamilton 2019 and Aitken 2014]
 
 p_value=0.05
 

@@ -209,7 +209,7 @@ for i_h in range(len(data.height)):
 plt.tight_layout()
 cbar_ax = fig.add_axes([0.1, 0.1, 0.8, 0.03])  # spans most of the width
 cbar = fig.colorbar(cf, cax=cbar_ax, orientation='horizontal',ticks=np.arange(0.1,0.31,0.05))
-cbar.set_label(r'$\overline{T^{\prime 2}}$ [$^\circ$C]')
+cbar.set_label(r'$\sqrt{\overline{T^{\prime 2}}}$ [$^\circ$C]')
 
 #wd-hour TI
 fig, axs = plt.subplots(1, 4, figsize=(18, 8), constrained_layout=True,subplot_kw={'projection': 'polar'})
