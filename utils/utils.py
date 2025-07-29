@@ -77,6 +77,7 @@ def plot_lin_fit(x, y, bins=50, cmap='Greys',ax=None,cax=None,legend=True):
     # Linear regression
     slope, intercept, r_value, _, _ = linregress(x, y)
     y_fit = slope * x + intercept
+    bias=np.nanmean(y-x)
     rmsd = np.sqrt(np.mean((y - y_fit)**2))
     r_squared = r_value**2
 
@@ -98,8 +99,9 @@ def plot_lin_fit(x, y, bins=50, cmap='Greys',ax=None,cax=None,legend=True):
     textstr = '\n'.join((
         f'Intercept: {intercept:.2f}',
         f'Slope: {slope:.2f}',
+        r'$R^2$: {:.2f}'.format(r_squared),
+        f'Bias: {bias:.2f}',
         f'RMSD: {rmsd:.2f}',
-        r'$R^2$: {:.2f}'.format(r_squared)
     ))
     ax.text(0.05, 0.95, textstr, transform=ax.transAxes,
             fontsize=12, verticalalignment='top',

@@ -21,7 +21,7 @@ source_config=os.path.join(cd,'configs','config.yaml')
 source=os.path.join(cd,'data/prior/Xa_Sa_datafile.nwtc.{unit}.55_levels.month_{month:02}.cdf')
 
 #user
-unit='ASSIST11'
+unit='ASSIST10'
 
 #%% Initialization
 #config

@@ -17,7 +17,7 @@ import glob
 import warnings
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 14
+matplotlib.rcParams['font.size'] = 16
 matplotlib.rcParams['savefig.dpi'] = 500
 
 warnings.filterwarnings('ignore')
@@ -27,31 +27,30 @@ plt.close('all')
 
 #dataset
 source_stab=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')#source of met stats
-source_waked=os.path.join(cd,'data/turbine_wakes.nc')
-source_m2=os.path.join(cd,'data','nwtc.m2.b0.csv')
-height_m2=[2,50,80]
-time_offset_m2=7#[h]
+source_waked=os.path.join(cd,'data/turbine_wakes.nc')#turbine wakes source
+source_m2=os.path.join(cd,'data','nwtc.m2.b0.csv')#source of M2 data
+height_m2=[2,50,80]#[m] M2 heights
+time_offset_m2=7#[h] time offset of M2 data
+site_trp= {'ASSIST10':'Site 4.0','ASSIST11':'Site 3.2'}
 
-height_sel=119#[m]
-max_height=200#[m]
+max_height=140#[m] maximum height ot select data
 g=9.81#[m/s^2] gravity acceleration
 cp=1005#[J/KgK] #air heat capacity
-max_f=40#[C]
-min_f=-5#[C]
-max_time_diff=10#[s]
+max_f=40#[C] min value
+min_f=-5#[C] max value
+max_time_diff=10#[s] maximum time difference
 
 #user
 unit='ASSIST11'#assist id
-var_trp='temperature'
+var_trp='temperature'#selected temperature variable in TROPoe data
 var_met='temperature'#selected temperature variable in M5 data
 
 #stats
 bin_Ri=np.array([-100,-0.25,-0.03,0.03,0.25,100])#bins in Ri [mix of Hamilton 2019 and Aitken 2014]
-p_value=0.05
-perc_lim=[5,95]
+p_value=0.05 #p-value for c.i.
+perc_lim=[5,95] #[%] percentile limits
 
 #graphics
-cmap = plt.get_cmap("coolwarm")
 stab_names={'S':4,'NS':3,'N':2,'NU':1,'U':0}
 
 #%% Initialization
@@ -76,10 +75,6 @@ time_diff_m2=tnum_m2.interp(time=Data_trp.time,method='nearest')-tnum_trp
 Data_m2=Data_m2.interp(time=Data_trp.time.values)
 Data_m2['time_diff']=time_diff_m2
 
-#QC
-Data_trp=Data_trp.where(Data_trp.qc==0)
-Data_met=Data_met.where(Data_met.time_diff<=max_time_diff)
-
 #read met data
 files=glob.glob(source_stab)
 met=xr.open_mfdataset(files)
@@ -100,9 +95,10 @@ Data_m2=Data_m2.where(Data_m2.time_diff<=max_time_diff)
 print(f"{int(np.sum(Data_m2.time_diff>max_time_diff))} points fail max_time_diff")
 
 #remove wakes
-Data_trp['waked']=waked['Site 3.2'].interp(time=Data_trp.time)
+Data_trp['waked']=waked[site_trp[unit]].interp(time=Data_trp.time)
 f_trp=Data_trp[var_trp].where(Data_trp['waked'].sum(dim='turbine')==0).sel(height=slice(0,max_height))
-print(f"{int(np.sum(Data_trp['waked'].sum(dim='turbine')>0))} wake events at Site 3.2 excluded")
+sigma_trp=Data_trp[f"sigma_{var_trp}"].where(Data_trp['waked'].sum(dim='turbine')==0).sel(height=slice(0,max_height))
+print(f"{int(np.sum(Data_trp['waked'].sum(dim='turbine')>0))} wake events at {site_trp[unit]} excluded")
 
 Data_met['waked']=waked['M5'].interp(time=Data_met.time)
 f_met=Data_met[var_met].where(Data_met['waked'].sum(dim='turbine')==0).sel(height=slice(0,max_height))
@@ -115,10 +111,10 @@ print(f"{int(np.sum(Data_m2['waked'].sum(dim='turbine')>0))} wake events at M2 e
 #remove outliers
 f_trp=f_trp.where(f_trp>=min_f).where(f_trp<=max_f)
 f_met=f_met.where(f_met>=min_f).where(f_met<=max_f)
-f_m2=f_m2.where(f_m2>=min_f).where(f_m2<=max_f)
+f_m2=  f_m2.where(f_m2>=min_f).where(f_m2<=max_f)
 
 #align nans
-real=np.isnan(f_trp).sum(dim='height')+np.isnan(f_met).sum(dim='height')+np.isnan(f_m2).sum(dim='height')==0
+real=(np.isnan(f_trp).sum(dim='height')+np.isnan(f_met).sum(dim='height')+np.isnan(f_m2).sum(dim='height'))==0
 f_trp=f_trp.where(real)
 f_met=f_met.where(real)
 f_m2=f_m2.where(real)
@@ -127,8 +123,7 @@ f_m2=f_m2.where(real)
 f_trp_bc=f_trp-Data_trp.bias
 
 #Ri
-Ri=met.Ri_3_122.interp(time=Data_trp.time)
-
+Ri=met.Ri_3_122.interp(time=Data_trp.time).where(real)
 
 #stats TROPoe
 f_avg=np.zeros((len(f_trp.height),len(bin_Ri)-1))
@@ -219,83 +214,101 @@ m2_stats['f_top']=xr.DataArray(data=f_top,coords={'height':f_m2.height,'Ri':(bin
 #%% Plots
 plt.close("all")
 
-#average profiles
-plt.figure(figsize=(18,4))
+#average profiles (including bias corrected)
+plt.figure(figsize=(18,7))
 
 ctr=1
 for s in stab_names:
     i_Ri=stab_names[s]
-    plt.subplot(1,len(stab_names),ctr)
-    plt.plot(met_stats.f_avg.isel(Ri=i_Ri),met_stats.height,'.-k',label='Met (M5)')
+    ax=plt.subplot(1,len(stab_names),ctr)
+    plt.plot(met_stats.f_avg.isel(Ri=i_Ri),met_stats.height,'.-k',label='Met (M5)',markersize=10)
     plt.fill_betweenx(met_stats.height,met_stats.f_low.isel(Ri=i_Ri),
                                       met_stats.f_top.isel(Ri=i_Ri),
                                       color='k',alpha=0.25)
     
-    plt.plot(m2_stats.f_avg.isel(Ri=i_Ri),m2_stats.height,'.-g',label='Met (M2)')
+    plt.plot(m2_stats.f_avg.isel(Ri=i_Ri),m2_stats.height,'.-b',label='Met (M2)',markersize=10)
     plt.fill_betweenx(m2_stats.height,m2_stats.f_low.isel(Ri=i_Ri),
                                       m2_stats.f_top.isel(Ri=i_Ri),
-                                      color='g',alpha=0.25)
-    
-    plt.plot(trp_stats.f_avg.isel(Ri=i_Ri),trp_stats.height,'.-r',label='TROPoe')
-    plt.fill_betweenx(trp_stats.height,trp_stats.f_low.isel(Ri=i_Ri),
-                                      trp_stats.f_top.isel(Ri=i_Ri),
-                                      color='r',alpha=0.25)
-    
-    plt.plot(trp_stats.f_bc_avg.isel(Ri=i_Ri),trp_stats.height,'.-b',label='TROPoe (bias-corrected)')
-    plt.fill_betweenx(trp_stats.height,trp_stats.f_bc_low.isel(Ri=i_Ri),
-                                      trp_stats.f_bc_top.isel(Ri=i_Ri),
                                       color='b',alpha=0.25)
     
+    plt.plot(trp_stats.f_avg.isel(Ri=i_Ri),trp_stats.height,'.-r',label='TROPoe',markersize=10)
+    plt.fill_betweenx(trp_stats.height,trp_stats.f_low.isel(Ri=i_Ri),
+                                      trp_stats.f_top.isel(Ri=i_Ri),
+                                      color='r',alpha=0.25)
+    
+    plt.plot(trp_stats.f_bc_avg.isel(Ri=i_Ri),trp_stats.height,'.-g',label='TROPoe (bias-corrected)')
+    plt.fill_betweenx(trp_stats.height,trp_stats.f_bc_low.isel(Ri=i_Ri),
+                                      trp_stats.f_bc_top.isel(Ri=i_Ri),
+                                      color='g',alpha=0.25)
+    
+    
     plt.plot(-g/cp*f_trp.height+met_stats.f_avg.isel(Ri=i_Ri).isel(height=0),trp_stats.height,'--k')
     
-    plt.xlim([15,25])
+    plt.xlim([17.5,25])
+    plt.ylim([0,160])
     plt.grid()
     plt.xlabel(r'$T$ [$^\circ$C]')
-    if i_Ri==0:
+    if ctr==1:
         plt.ylabel(r'$z$ [m]')
+    else:
+        ax.set_yticklabels([])
     
-    plt.title(s)
+    N_Ri=int(np.sum((Ri>=bin_Ri[i_Ri])*(Ri<bin_Ri[i_Ri+1])))
     
+    plt.title(f'Conditions: {s} \n # of profiles: {N_Ri}')
+    plt.xticks(np.arange(17,26))
+    plt.yticks(np.arange(0,151,25))
     
     ctr+=1
+plt.subplots_adjust(wspace=0.1)
 plt.tight_layout()
-plt.legend()
+plt.legend(draggable=True)
+    
+
+
 
 
 #average profiles
-plt.figure(figsize=(18,4))
+plt.figure(figsize=(18,6))
 
 ctr=1
 for s in stab_names:
     i_Ri=stab_names[s]
-    plt.subplot(1,len(stab_names),ctr)
-    plt.plot(met_stats.f_avg.isel(Ri=i_Ri),met_stats.height,'.-k',label='Met (M5)')
+    ax=plt.subplot(1,len(stab_names),ctr)
+    plt.plot(met_stats.f_avg.isel(Ri=i_Ri),met_stats.height,'.-k',label='Met (M5)',markersize=10)
     plt.fill_betweenx(met_stats.height,met_stats.f_low.isel(Ri=i_Ri),
                                       met_stats.f_top.isel(Ri=i_Ri),
                                       color='k',alpha=0.25)
     
-    plt.plot(m2_stats.f_avg.isel(Ri=i_Ri),m2_stats.height,'.-g',label='Met (M2)')
+    plt.plot(m2_stats.f_avg.isel(Ri=i_Ri),m2_stats.height,'.-b',label='Met (M2)',markersize=10)
     plt.fill_betweenx(m2_stats.height,m2_stats.f_low.isel(Ri=i_Ri),
                                       m2_stats.f_top.isel(Ri=i_Ri),
-                                      color='g',alpha=0.25)
+                                      color='b',alpha=0.25)
     
-    plt.plot(trp_stats.f_avg.isel(Ri=i_Ri),trp_stats.height,'.-r',label='TROPoe')
+    plt.plot(trp_stats.f_avg.isel(Ri=i_Ri),trp_stats.height,'.-r',label='TROPoe',markersize=10)
     plt.fill_betweenx(trp_stats.height,trp_stats.f_low.isel(Ri=i_Ri),
                                       trp_stats.f_top.isel(Ri=i_Ri),
                                       color='r',alpha=0.25)
     
     plt.plot(-g/cp*f_trp.height+met_stats.f_avg.isel(Ri=i_Ri).isel(height=0),trp_stats.height,'--k')
     
-    plt.xlim([15,25])
+    plt.xlim([17.5,25])
+    plt.ylim([0,max_height])
     plt.grid()
     plt.xlabel(r'$T$ [$^\circ$C]')
-    if i_Ri==0:
+    if ctr==1:
         plt.ylabel(r'$z$ [m]')
+    else:
+        ax.set_yticklabels([])
     
-    plt.title(s)
+    N_Ri=int(np.sum((Ri>=bin_Ri[i_Ri])*(Ri<bin_Ri[i_Ri+1])))
     
+    plt.title(f'Conditions: {s} \n # of profiles: {N_Ri}')
+    plt.xticks(np.arange(17,26))
+    plt.yticks(np.arange(0,max_height+1,25))
     
     ctr+=1
+plt.subplots_adjust(wspace=0.1)
 plt.tight_layout()
-plt.legend()
+plt.legend(draggable=True)
     

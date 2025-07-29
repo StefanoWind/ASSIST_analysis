@@ -37,7 +37,7 @@ var_met='temperature'#selected variable in M5 data
 
 #stats
 p_value=0.05#for CI
-max_height=200#[km]
+max_height=200#[m] maximum height
 max_f=40#[C] max threshold of selected variable
 min_f=-5#[C] min threshold of selected variable
 max_time_diff=10#[s] maximum difference in time between met and TROPoe
@@ -45,10 +45,10 @@ perc_lim=[1,99] #[%] percentile fitler before feature selection
  
 #graphics
 cmap = plt.get_cmap("viridis")
-# zooms=[['2022-05-19','2022-05-21'],
-#        ['2022-07-23','2022-07-27'],
-#        ['2022-08-08','2022-08-13']]
-zooms=[[]]
+zooms=[['2022-05-19','2022-05-21'],
+       ['2022-07-23','2022-07-27'],
+       ['2022-08-08','2022-08-13']]
+# zooms=[[]]
 rf_vars=['CBH','Ri','Wind speed','Wind direction']
 
 #%% Initialization
