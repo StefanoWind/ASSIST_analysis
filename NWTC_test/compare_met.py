@@ -24,10 +24,12 @@ matplotlib.rcParams['savefig.dpi']=500
 plt.close("all")
 
 #%% Inputs
+
 source_config=os.path.join(cd,'configs','config.yaml')
 source_waked=os.path.join(cd,'data/turbine_wakes.nc')
 source_met_sta=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')#source of met stats
 sigma_met=0.1#[C] uncertaiinty of met measurements [St Martin et al. 2016]
+site_trp= {'ASSIST10':'Site 4.0','ASSIST11':'Site 3.2'}
 
 #user
 unit='ASSIST11'#assist id
@@ -41,14 +43,14 @@ max_height=200#[m] maximum height
 max_f=40#[C] max threshold of selected variable
 min_f=-5#[C] min threshold of selected variable
 max_time_diff=10#[s] maximum difference in time between met and TROPoe
-perc_lim=[1,99] #[%] percentile fitler before feature selection
+perc_lim=[1,99] #[%] percentile filter before feature selection
  
 #graphics
 cmap = plt.get_cmap("viridis")
 zooms=[['2022-05-19','2022-05-21'],
        ['2022-07-23','2022-07-27'],
        ['2022-08-08','2022-08-13']]
-# zooms=[[]]
+
 rf_vars=['CBH','Ri','Wind speed','Wind direction']
 
 #%% Initialization
@@ -89,10 +91,10 @@ Data_met=Data_met.where(Data_met.time_diff<=max_time_diff)
 print(f"{int(np.sum(Data_met.time_diff>max_time_diff))} points fail max_time_diff")
 
 #remove wake
-Data_trp['waked']=waked['Site 3.2'].interp(time=Data_trp.time)
+Data_trp['waked']=waked[site_trp[unit]].interp(time=Data_trp.time)
 f_trp=Data_trp[var_trp].where(Data_trp['waked'].sum(dim='turbine')==0).sel(height=slice(0,max_height))
 sigma_trp=Data_trp[f"sigma_{var_trp}"].where(Data_trp['waked'].sum(dim='turbine')==0).sel(height=slice(0,max_height))
-print(f"{int(np.sum(Data_trp['waked'].sum(dim='turbine')>0))} wake events at Site 3.2 excluded")
+print(f"{int(np.sum(Data_trp['waked'].sum(dim='turbine')>0))} wake events at {site_trp[unit]} excluded")
 
 Data_met['waked']=waked['M5'].interp(time=Data_met.time)
 f_met=Data_met[var_met].where(Data_met['waked'].sum(dim='turbine')==0).sel(height=slice(0,max_height))
@@ -194,7 +196,7 @@ gs = gridspec.GridSpec(len(height)+1,len(zooms),width_ratios=durations/durations
 for i_h in range(len(height)):
     i_z=0
     for zoom in zooms:
-        ax=fig.add_subplot(gs[i_h+1,i_z])
+        ax=fig.add_subplot(gs[len(height)-i_h,i_z])
         t1=np.datetime64(zoom[0]+'T00:00:00')
         t2=np.datetime64(zoom[1]+'T00:00:00')
         sel=(time>=t1)*(time<=t2)
@@ -213,8 +215,9 @@ for i_h in range(len(height)):
             ax.set_yticklabels([])
         else:
             ax.set_ylabel(r'$T$ [$^\circ$C]')
-        if i_h==len(height)-1:
+        if i_h==0:
             plt.xticks(rotation=30)
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d')) 
         else:
             ax.set_xticklabels([])
         
@@ -236,7 +239,7 @@ for i_h in range(len(height)):
         
         i_z+=1  
 plt.legend(draggable=True)
-ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d')) 
+
 
 #linear regression
 bins=np.arange(-5,5.1,0.05)
@@ -281,7 +284,6 @@ for i_h in range(len(height)):
     
     plt.xlabel(r'$\Delta T$ (TROPoe-met) [$^\circ$C]')
     plt.ylim([0.01,10])
-
         
 #importance
 matplotlib.rcParams['font.size'] = 12
