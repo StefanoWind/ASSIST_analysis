@@ -68,7 +68,7 @@ def datestr(num,format="%Y-%m-%d %H:%M:%S.%f"):
     string=datetime.utcfromtimestamp(num).strftime(format)
     return string
 
-def plot_lin_fit(x, y, bins=50, cmap='Greys',ax=None,cax=None,legend=True):
+def plot_lin_fit(x, y, bins=50, cmap='Greys',ax=None,cax=None,legend=True,limits=None):
 
     # Remove NaNs
     mask = ~np.isnan(x) & ~np.isnan(y)
@@ -86,7 +86,10 @@ def plot_lin_fit(x, y, bins=50, cmap='Greys',ax=None,cax=None,legend=True):
         fig, ax = plt.subplots(figsize=(8, 6))
 
     # 2D histogram
-    h = ax.hist2d(x, y, bins=bins, cmap=cmap)
+    if limits is None:
+        h = ax.hist2d(x, y, bins=bins, cmap=cmap)
+    else:
+        h = ax.hist2d(x, y, bins=bins, cmap=cmap,vmin=limits[0],vmax=limits[1])
     if cax is not None:
         plt.colorbar(h[3], ax=ax,cax=cax, label='Counts')
 
