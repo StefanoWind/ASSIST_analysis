@@ -31,7 +31,7 @@ source=os.path.join(cd,'data/FC_topo_v2.nc')
 source_nwtc='data/NWTC.xlsx'
 
 #domain limits [m from M5]
-xlim=[-1000,500]
+xlim=[-1200,500]
 ylim=[-1000,500]
 
 #%% Functions
@@ -102,10 +102,11 @@ plt.close('all')
 star_marker = MarkerStyle(three_point_star())
 
 plt.figure(figsize=(18,8))
-cf=plt.contourf(x[sel_x],y[sel_y], Z[:,sel_x][sel_y,:],np.arange(1780,1850,5),cmap='summer',extend='both')
+cf=plt.contourf(x[sel_x],y[sel_y], Z[:,sel_x][sel_y,:],np.arange(1780,1860,5),cmap='summer',extend='both')
 ax=plt.gca()
-ct=plt.contour(x[sel_x],y[sel_y], Z[:,sel_x][sel_y,:],np.arange(1780,1850,5),colors='k',linewidths=0.5,alpha=0.5)
+ct=plt.contour(x[sel_x],y[sel_y], Z[:,sel_x][sel_y,:],np.arange(1780,1860,5),colors='k',linewidths=0.5,alpha=0.5)
 plt.plot(FC['x']['M5'],FC['y']['M5'],'^k',markersize=10)
+plt.plot(FC['x']['M2'],FC['y']['M2'],'^k',markersize=10)
 plt.plot(FC['x']['Site 3.2'],FC['y']['Site 3.2'],'sk',markersize=7)
 plt.plot(FC['x']['Site 4.0'],FC['y']['Site 4.0'],'sk',markersize=7)
 plt.plot(FC['x']['Ceilometer'],FC['y']['Ceilometer'],'vk',markersize=7)
