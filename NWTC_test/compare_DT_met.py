@@ -25,7 +25,7 @@ plt.close("all")
 #dataset
 source_config=os.path.join(cd,'configs','config.yaml')
 source_waked=os.path.join(cd,'data/turbine_wakes.nc')
-source_met_sta=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')#source of met stats
+source_met_sta=os.path.join(cd,'data/nwtc.m5.c1.corr.nc')#source of met stats
 sigma_met=0.1#[C] uncertaiinty of met measurements [St Martin et al. 2016]
 site_trp= {'ASSIST10':'Site 4.0','ASSIST11':'Site 3.2'}
 bin_Ri=np.array([-100,-0.25,-0.03,0.03,0.25,100])#bins in Ri [mix of Hamilton 2019 and Aitken 2014]
@@ -80,7 +80,7 @@ with open(source_config, 'r') as fid:
     
 #read and align data
 Data_trp=xr.open_dataset(os.path.join(cd,'data',f'tropoe.{unit}.bias.nc'))
-Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.a1.{unit}.nc'))
+Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.a1.{unit}.corr.nc'))
 
 Data_trp,Data_met=xr.align(Data_trp,Data_met,join="inner",exclude=["height"])
 
@@ -88,8 +88,7 @@ Data_trp,Data_met=xr.align(Data_trp,Data_met,join="inner",exclude=["height"])
 waked=xr.open_dataset(source_waked)
 
 #read met stats
-files=glob.glob(source_met_sta)
-Data_met_sta=xr.open_mfdataset(files)
+Data_met_sta=xr.open_dataset(source_met_sta)
 
 #%% Main
 

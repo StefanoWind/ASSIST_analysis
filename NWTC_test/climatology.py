@@ -12,7 +12,6 @@ import numpy as np
 import xarray as xr
 from matplotlib import pyplot as plt
 import warnings
-import glob
 from scipy import stats
 from windrose import WindroseAxes
 import matplotlib
@@ -25,7 +24,7 @@ warnings.filterwarnings('ignore')
 plt.close('all')
 
 #%% Inputs
-source=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')
+source=os.path.join(cd,'data/nwtc.m5.c1.corr.nc')
 source_waked=os.path.join(cd,'data/turbine_wakes.nc')
 height_sel=87#[m] selected height for wind rose
 
@@ -47,8 +46,7 @@ hour_sunset=1#[h]
 #%% Initialization
 
 #read met stats
-files=glob.glob(source)
-data=xr.open_mfdataset(files)
+data=xr.open_dataset(source)
 
 #read wake data
 waked=xr.open_dataset(source_waked)

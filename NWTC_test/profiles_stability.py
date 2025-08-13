@@ -26,7 +26,7 @@ plt.close('all')
 #%% Inputs
 
 #dataset
-source_stab=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')#source of met stats
+source_stab=os.path.join(cd,'data/nwtc.m5.c1.corr.nc')#source of met stats
 source_waked=os.path.join(cd,'data/turbine_wakes.nc')#turbine wakes source
 source_m2=os.path.join(cd,'data','nwtc.m2.b0.csv')#source of M2 data
 height_m2=[2,50,80]#[m] M2 heights
@@ -57,7 +57,7 @@ stab_names={'S':4,'NS':3,'N':2,'NU':1,'U':0}
 
 #read and align data
 Data_trp=xr.open_dataset(os.path.join(cd,'data',f'tropoe.{unit}.bias.nc'))
-Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.a1.{unit}.nc'))
+Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.a1.{unit}.corr.nc'))
 
 Data_trp,Data_met=xr.align(Data_trp,Data_met,join="inner",exclude=["height"])
 
@@ -76,8 +76,7 @@ Data_m2=Data_m2.interp(time=Data_trp.time.values)
 Data_m2['time_diff']=time_diff_m2
 
 #read met data
-files=glob.glob(source_stab)
-met=xr.open_mfdataset(files)
+met=xr.open_dataset(source_stab)
 
 #read wake data
 waked=xr.open_dataset(source_waked)

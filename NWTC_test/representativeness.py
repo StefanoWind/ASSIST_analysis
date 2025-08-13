@@ -13,7 +13,6 @@ import xarray as xr
 from matplotlib import pyplot as plt
 from matplotlib.ticker import NullFormatter
 import warnings
-import glob
 from scipy import stats
 import yaml
 import matplotlib
@@ -26,7 +25,7 @@ warnings.filterwarnings('ignore')
 plt.close('all')
 
 #%% Inputs
-source_met_sta=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')#source of met stats
+source_met_sta=os.path.join(cd,'data/nwtc.m5.c1.corr.nc')#source of met stats
 source_config=os.path.join(cd,'configs','config.yaml')
 source_waked=os.path.join(cd,'data/turbine_wakes.nc')#source of turbine wakes data
 
@@ -35,7 +34,7 @@ units=['ASSIST10','ASSIST11']#assist ids
 var_trp='temperature'#selected variable in TROPoe data
 var_met='temperature'#selected variable in M5 data
 var_sf='D_res_air_temp_rec'#selected structure function variable in M5 data
-wd_align={'ASSIST10':225,'ASSIST11':230}#[deg] direction of alignment (met tower based)
+wd_align={'ASSIST10':225,'ASSIST11':230}#[deg] direction of alignment (M5 based)
 spacing= {'ASSIST10':66,'ASSIST11':440}#[m] distance from tower
 site_trp= {'ASSIST10':'Site 4.0','ASSIST11':'Site 3.2'}
 sigma_met=0.1#[C] uncertaiinty of met measurements [St Martin et al. 2016]
@@ -67,8 +66,7 @@ with open(source_config, 'r') as fid:
 waked=xr.open_dataset(source_waked)
 
 #read met stats
-files=glob.glob(source_met_sta)
-Data_met_sta=xr.open_mfdataset(files)
+Data_met_sta=xr.open_dataset(source_met_sta)
 
 #zeroing
 D_avg={}
@@ -90,7 +88,7 @@ std_pred={}
 for unit in units:
     #read and align data
     Data_trp=xr.open_dataset(os.path.join(cd,'data',f'tropoe.{unit}.bias.nc'))
-    Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.a1.{unit}.nc'))
+    Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.a1.{unit}.corr.nc'))
     Data_trp,Data_met=xr.align(Data_trp,Data_met,join="inner",exclude=["height"])
     
     #height interpolation
@@ -256,7 +254,7 @@ for unit in units:
         ax.set_yscale('log')
         plt.ylim([0.01,2])
         plt.grid()
-        plt.xlabel('Distance form met tower [m]')
+        plt.xlabel('Distance from M5 [m]')
         if i_h==0:
             plt.ylabel(r'RMSD of $\Delta T$ [$^\circ$C]')
             plt.legend(draggable=True)
@@ -288,7 +286,7 @@ for i_h in range(len(height)):
     ax.set_yscale('log')
     plt.ylim([0.01,2])
     plt.grid()
-    plt.xlabel('Distance form met tower [m]')
+    plt.xlabel('Distance from M5 [m]')
     if i_h==0:
         plt.ylabel(r'RMSD of $\Delta T$ [$^\circ$C]')
         plt.legend(draggable=True)

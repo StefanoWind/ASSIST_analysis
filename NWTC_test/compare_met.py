@@ -15,7 +15,6 @@ import yaml
 from scipy.stats import norm
 from matplotlib.ticker import NullFormatter
 import matplotlib.gridspec as gridspec
-import glob
 import matplotlib.dates as mdates
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
@@ -27,7 +26,7 @@ plt.close("all")
 
 source_config=os.path.join(cd,'configs','config.yaml')
 source_waked=os.path.join(cd,'data/turbine_wakes.nc')
-source_met_sta=os.path.join(cd,'data/nwtc/nwtc.m5.c1/*nc')#source of met stats
+source_met_sta=os.path.join(cd,'data/nwtc.m5.c1.corr.nc')#source of met stats
 sigma_met=0.1#[C] uncertaiinty of met measurements [St Martin et al. 2016]
 site_trp= {'ASSIST10':'Site 4.0','ASSIST11':'Site 3.2'}
 
@@ -51,7 +50,7 @@ zooms=[['2022-05-19','2022-05-21'],
        ['2022-07-23','2022-07-27'],
        ['2022-08-08','2022-08-13']]
 
-rf_vars=['CBH','Ri','Wind speed','Wind direction']
+rf_vars=['CBH','Richardson number','Wind speed','Wind direction']
 
 #%% Initialization
 #config
@@ -60,7 +59,7 @@ with open(source_config, 'r') as fid:
     
 #read and align data
 Data_trp=xr.open_dataset(os.path.join(cd,'data',f'tropoe.{unit}.bias.nc'))
-Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.a1.{unit}.nc'))
+Data_met=xr.open_dataset(os.path.join(cd,'data',f'met.a1.{unit}.corr.nc'))
 
 Data_trp,Data_met=xr.align(Data_trp,Data_met,join="inner",exclude=["height"])
 
@@ -68,8 +67,7 @@ Data_trp,Data_met=xr.align(Data_trp,Data_met,join="inner",exclude=["height"])
 waked=xr.open_dataset(source_waked)
 
 #read met stats
-files=glob.glob(source_met_sta)
-Data_met_sta=xr.open_mfdataset(files)
+Data_met_sta=xr.open_dataset(source_met_sta)
 
 #zeroing
 importance={}
@@ -87,7 +85,7 @@ Data_trp=Data_trp.interp(height=Data_met.height)
 Data_trp=Data_trp.where(Data_trp.qc==0)
 print(f"{int(np.sum(Data_trp.qc!=0))} points fail QC in TROPoe")
 
-Data_met=Data_met.where(Data_met.time_diff<=max_time_diff)
+Data_met=Data_met.where(np.abs(Data_met.time_diff)<=max_time_diff)
 print(f"{int(np.sum(Data_met.time_diff>max_time_diff))} points fail max_time_diff")
 
 #remove wake
@@ -159,7 +157,7 @@ fig=plt.figure(figsize=(18,10))
 for i_h in range(len(height)):
     ax=plt.subplot(len(height),1,i_h+1)
     plt.plot(time,f_met,'-k',alpha=0.25)
-    plt.plot(time,f_met.isel(height=i_h),'-k',label='Met')
+    plt.plot(time,f_met.isel(height=i_h),'-k',label='M5')
     plt.plot(time,f_trp.isel(height=i_h),'-r',label='TROPoe')
     plt.ylim([-5,35])
     plt.grid()
@@ -173,11 +171,11 @@ plt.legend()
 fig=plt.figure(figsize=(18,10))
 for i_h in range(len(height)):
     ax=plt.subplot(len(height),1,i_h+1)
-    plt.plot(time,diff.isel(height=i_h),'-k',label='TROPoe-met')
+    plt.plot(time,diff.isel(height=i_h),'-k',label='TROPoe-M5')
     plt.plot(time,Data_trp.bias.isel(height=i_h),'-b',label='Prior bias')
     plt.ylim([-3,3])
     plt.grid()
-    plt.ylabel(r'$\Delta T$' +'\n (TROPoe-met)'+r'[$^\circ$C]')
+    plt.ylabel(r'$\Delta T$' +'\n (TROPoe-M5)'+r'[$^\circ$C]')
     if i_h==len(height)-1:
         plt.xlabel('Time (UTC)')
     plt.text(time[10],2,r'$z='+str(height[i_h])+r'$ m',bbox={'alpha':0.5,'color':'w'})
@@ -205,8 +203,8 @@ for i_h in range(len(height)):
         for t in time[sel*precip]:
             plt.plot([t,t],[-5,35],'b',alpha=0.25)
         plt.plot(time[sel],f_met.values[sel,:],'k',alpha=0.25)
-        plt.plot(time[sel][0],0,'k',alpha=0.25,label='Met (all heights)')
-        plt.plot(time[sel],f_met.isel(height=i_h).values[sel],'k',label='Met')
+        plt.plot(time[sel][0],0,'k',alpha=0.25,label='M5 (all heights)')
+        plt.plot(time[sel],f_met.isel(height=i_h).values[sel],'k',label='M5')
         plt.plot(time[sel],f_trp.isel(height=i_h).values[sel],'.r',markersize=3,label='TROPoe')
         
         ax.set_ylim([-1,35])
@@ -242,6 +240,7 @@ plt.legend(draggable=True)
 
 
 #linear regression
+matplotlib.rcParams['font.size'] = 14
 bins=np.arange(-5,5.1,0.05)
 fig=plt.figure(figsize=(18,10))
 gs = gridspec.GridSpec(2,len(height)+1,width_ratios=[1]*len(height)+[0.05]) 
@@ -259,7 +258,7 @@ for i_h in range(len(height)):
     ax.set_xticks([0,10,20,30])
     ax.set_yticks([0,10,20,30])
     ax.grid(True)
-    ax.set_xlabel(r'$T$ (met) [$^\circ$C]')
+    ax.set_xlabel(r'$T$ (M5) [$^\circ$C]')
     if i_h==0:
         ax.set_ylabel(r'$T$ (TROPoe) [$^\circ$C]')
         plt.legend(draggable=True)
@@ -277,12 +276,12 @@ for i_h in range(len(height)):
     ax.set_yscale('log')
     plt.grid()
     if i_h==0:
-        ax.set_ylabel('Counts')
+        ax.set_ylabel('P.d.f.')
         plt.legend(draggable=True)
     else:
         ax.yaxis.set_major_formatter(NullFormatter())
     
-    plt.xlabel(r'$\Delta T$ (TROPoe-met) [$^\circ$C]')
+    plt.xlabel(r'$\Delta T$ (TROPoe-M5) [$^\circ$C]')
     plt.ylim([0.01,10])
         
 #importance
