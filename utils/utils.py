@@ -195,3 +195,14 @@ def RF_feature_selector(X,y,test_size=0.8,n_search=30,n_repeats=30,limits={}):
     importance_std=result.importances_std
     
     return importance,importance_std,y_pred,test_mae,train_mae,best_params
+
+
+def vstack(a,b):
+    '''
+    Stack vertically vectors
+    '''
+    if len(a)>0:
+        ab=np.vstack((a,b))
+    else:
+        ab=b
+    return ab   
