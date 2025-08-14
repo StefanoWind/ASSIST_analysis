@@ -220,12 +220,12 @@ ctr=1
 for s in stab_names:
     i_Ri=stab_names[s]
     ax=plt.subplot(1,len(stab_names),ctr)
-    plt.plot(met_stats.f_avg.isel(Ri=i_Ri),met_stats.height,'.-k',label='Met (M5)',markersize=10)
+    plt.plot(met_stats.f_avg.isel(Ri=i_Ri),met_stats.height,'.-k',label='M5',markersize=10)
     plt.fill_betweenx(met_stats.height,met_stats.f_low.isel(Ri=i_Ri),
                                       met_stats.f_top.isel(Ri=i_Ri),
                                       color='k',alpha=0.25)
     
-    plt.plot(m2_stats.f_avg.isel(Ri=i_Ri),m2_stats.height,'.-b',label='Met (M2)',markersize=10)
+    plt.plot(m2_stats.f_avg.isel(Ri=i_Ri),m2_stats.height,'.-b',label='M2',markersize=10)
     plt.fill_betweenx(m2_stats.height,m2_stats.f_low.isel(Ri=i_Ri),
                                       m2_stats.f_top.isel(Ri=i_Ri),
                                       color='b',alpha=0.25)
@@ -274,12 +274,12 @@ ctr=1
 for s in stab_names:
     i_Ri=stab_names[s]
     ax=plt.subplot(1,len(stab_names),ctr)
-    plt.plot(met_stats.f_avg.isel(Ri=i_Ri),met_stats.height,'.-k',label='Met (M5)',markersize=10)
+    plt.plot(met_stats.f_avg.isel(Ri=i_Ri),met_stats.height,'.-k',label='M5',markersize=10)
     plt.fill_betweenx(met_stats.height,met_stats.f_low.isel(Ri=i_Ri),
                                       met_stats.f_top.isel(Ri=i_Ri),
                                       color='k',alpha=0.25)
     
-    plt.plot(m2_stats.f_avg.isel(Ri=i_Ri),m2_stats.height,'.-b',label='Met (M2)',markersize=10)
+    plt.plot(m2_stats.f_avg.isel(Ri=i_Ri),m2_stats.height,'.-b',label='M2',markersize=10)
     plt.fill_betweenx(m2_stats.height,m2_stats.f_low.isel(Ri=i_Ri),
                                       m2_stats.f_top.isel(Ri=i_Ri),
                                       color='b',alpha=0.25)

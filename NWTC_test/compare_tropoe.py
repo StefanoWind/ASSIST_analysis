@@ -21,6 +21,7 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['font.size'] = 18
+matplotlib.rcParams['savefig.dpi']=500
 
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
@@ -158,7 +159,7 @@ plt.fill_betweenx(height, rmsd_low,rmsd_top,color='k',alpha=0.25,linewidth=2)
 plt.plot(rmsd_th,height,'r',linewidth=2)
 for h in height_sel:
     plt.plot([0,0.6],[h,h],'--b')
-plt.xlabel(r'RMSD of $\Delta \hat{T}$ [$^\circ$C]')
+plt.xlabel(r'RMS of $\Delta \hat{T}$ [$^\circ$C]')
 plt.xlim([0,0.6])
 plt.ylim([0,max_height*1000])
 ax.set_yticklabels([])
@@ -175,7 +176,7 @@ plt.ylim([0,max_height*1000])
 ax.set_yticklabels([])
 plt.grid()
 
-bins=np.arange(-1.5,1.5+0.0001,0.01)
+bins=np.arange(-2,2+0.0001,0.01)
 locs=['upper right','center right','lower right']
 ctr=0 
 for h in height_sel:
@@ -183,14 +184,19 @@ for h in height_sel:
                     # bbox_to_anchor=(1.05, 0.65, 1, 1), bbox_transform=ax.transAxes, borderpad=0)
     ax_inset.hist(Diff['DT'].interp(height=h/1000),bins,color='k',density=True,alpha=0.5)
     ax_inset.plot(bins,norm.pdf(bins,loc=0,scale=Diff['sigmaDT'].interp(height=h/1000).mean()),'r',linewidth=2)
+    ax_inset.fill_between(bins,norm.pdf(bins,loc=0,scale=Diff['sigmaDT'].interp(height=h/1000).min()),
+                               norm.pdf(bins,loc=0,scale=Diff['sigmaDT'].interp(height=h/1000).max()),color='r',alpha=0.25)
     ax_inset.plot(bins,norm.pdf(bins,loc=Diff['DT'].interp(height=h/1000).mean(),scale=Diff['DT'].interp(height=h/1000).std()),'k',linewidth=2)
-    ax_inset.text(-0.9+ctr*0.125,10,r'$z='+str(int(h))+'$ m',color='b',bbox={'facecolor':'b','alpha':0.25},fontsize=18)
+    ax_inset.text(-1.2+ctr*0.125,10,r'$z='+str(int(h))+'$ m',color='b',bbox={'facecolor':'b','alpha':0.25},fontsize=18)
     ax_inset.set_yscale('log')
-    ax_inset.set_xlim([-1.5,1.5])
+    ax_inset.set_xlim([-2,2])
     ax_inset.set_ylim([1/len(Diff.time)/0.01/2,20])
     if ctr>0:
         ax_inset.set_xticklabels([])
         ax_inset.set_yticklabels([])
+    else:
+        ax_inset.set_xlabel('$\Delta \hat{T}$ [$^\circ$C]')
+        ax_inset.set_ylabel('PDF')
     ax_inset.grid(True)
     ctr+=1
 plt.tight_layout()

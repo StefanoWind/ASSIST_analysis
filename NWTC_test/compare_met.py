@@ -276,7 +276,7 @@ for i_h in range(len(height)):
     ax.set_yscale('log')
     plt.grid()
     if i_h==0:
-        ax.set_ylabel('P.d.f.')
+        ax.set_ylabel('PDF')
         plt.legend(draggable=True)
     else:
         ax.yaxis.set_major_formatter(NullFormatter())

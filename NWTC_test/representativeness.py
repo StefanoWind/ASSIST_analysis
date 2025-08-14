@@ -256,7 +256,7 @@ for unit in units:
         plt.grid()
         plt.xlabel('Distance from M5 [m]')
         if i_h==0:
-            plt.ylabel(r'RMSD of $\Delta T$ [$^\circ$C]')
+            plt.ylabel(r'RMS of $\Delta T$ [$^\circ$C]')
             plt.legend(draggable=True)
         else:
             ax.yaxis.set_major_formatter(NullFormatter())
@@ -288,7 +288,7 @@ for i_h in range(len(height)):
     plt.grid()
     plt.xlabel('Distance from M5 [m]')
     if i_h==0:
-        plt.ylabel(r'RMSD of $\Delta T$ [$^\circ$C]')
+        plt.ylabel(r'RMS of $\Delta T$ [$^\circ$C]')
         plt.legend(draggable=True)
     else:
         ax.yaxis.set_major_formatter(NullFormatter())

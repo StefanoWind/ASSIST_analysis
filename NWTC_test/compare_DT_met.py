@@ -13,10 +13,10 @@ import matplotlib
 from matplotlib import pyplot as plt
 import yaml
 import matplotlib.gridspec as gridspec
-import glob
+
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 14
+matplotlib.rcParams['font.size'] = 16
 matplotlib.rcParams['savefig.dpi']=500
 plt.close("all")
 
@@ -24,12 +24,12 @@ plt.close("all")
 
 #dataset
 source_config=os.path.join(cd,'configs','config.yaml')
-source_waked=os.path.join(cd,'data/turbine_wakes.nc')
+source_waked=os.path.join(cd,'data/turbine_wakes.nc')#path to wakes table
 source_met_sta=os.path.join(cd,'data/nwtc.m5.c1.corr.nc')#source of met stats
 sigma_met=0.1#[C] uncertaiinty of met measurements [St Martin et al. 2016]
 site_trp= {'ASSIST10':'Site 4.0','ASSIST11':'Site 3.2'}
 bin_Ri=np.array([-100,-0.25,-0.03,0.03,0.25,100])#bins in Ri [mix of Hamilton 2019 and Aitken 2014]
-stab_names={'S':4,'NS':3,'N':2,'NU':1,'U':0}
+stab_names={'S':4,'NS':3,'N':2,'NU':1,'U':0}#name of stabilty classes
 
 #user
 unit='ASSIST11'#assist id
@@ -203,9 +203,9 @@ for v in df_dz_trp.data_vars:
     
     ax.grid(True)
     if ctr>=3:
-        ax.set_xlabel(r'$\frac{\Delta T}{\Delta z}$ (met) [$^\circ$C m$^{-1}$]')
+        ax.set_xlabel(r'$\frac{\Delta T}{\Delta z}$ (M5) [$^\circ$C m$^{-1}$]')
     if ctr==0 or ctr==3:
-        ax.set_ylabel(r'$\frac{\Delta T}{\Delta z}$ (tropoe) [$^\circ$C m$^{-1}$]')
+        ax.set_ylabel(r'$\frac{\Delta T}{\Delta z}$ (TROPoe) [$^\circ$C m$^{-1}$]')
         
     if ctr==0:
         plt.legend(draggable=True)
@@ -238,8 +238,8 @@ print(matrix)
 #Ri time series
 plt.figure(figsize=(18,4))
 
-plt.plot(time,Ri_met,'-k',label='Met')
-plt.plot(Data_met_sta.time,Data_met_sta[f'Ri_{h1}_{h2}'],'b',label='Met (10 min)')
+plt.plot(time,Ri_met,'-k',label='M5')
+plt.plot(Data_met_sta.time,Data_met_sta[f'Ri_{h1}_{h2}'],'b',label='M5 (10 min)')
 plt.plot(time,Ri_trp,'-r',label='TROPoe')
 plt.gca().set_yscale('symlog')
 plt.ylim([-100,100])

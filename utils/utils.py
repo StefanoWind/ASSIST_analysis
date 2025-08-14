@@ -104,7 +104,7 @@ def plot_lin_fit(x, y, bins=50, cmap='Greys',ax=None,cax=None,legend=True,limits
         f'Slope: {slope:.2f}',
         r'$R^2$: {:.2f}'.format(r_squared),
         f'Bias: {bias:.2f}',
-        f'RMSD: {rmsd:.2f}',
+        f'RMS: {rmsd:.2f}',
     ))
     ax.text(0.05, 0.95, textstr, transform=ax.transAxes,
             fontsize=12, verticalalignment='top',
