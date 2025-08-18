@@ -13,12 +13,13 @@ from matplotlib import pyplot as plt
 from doe_dap_dl import DAP
 import warnings
 import matplotlib.dates as mdates
-from datetime import datetime
+from datetime import datetime,timedelta
 import matplotlib
 import glob 
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm' 
 matplotlib.rcParams['font.size'] = 14
+matplotlib.rcParams['savefig.dpi'] = 500
 
 plt.close('all')
 warnings.filterwarnings('ignore')
@@ -27,10 +28,13 @@ warnings.filterwarnings('ignore')
 username='sletizia'
 password='pass_DAP1506@'
 channels=['awaken/sb.assist.z01.00','awaken/sc1.assist.z01.00','awaken/sg.assist.z01.00',
-          'awaken/sa1.ceil.z01.b0','awaken/arm.ceil.sgp_s6.cbh.b1','radiosondes',
+          'awaken/sa1.ceil.z01.b0','awaken/arm.ceil.sgp_s6.cbh.b1','ceil.C1','lidar.E37','radiosondes',
           'awaken/sb.met.z01.b0',   'awaken/sc1.met.z01.b0', 'awaken/sg.met.z01.b0',
-          'awaken/sb.assist.z01.c0','awaken/sc1.assist.z01.c0','awaken/sg.assist.z01.c0']
-source_sondes='C:/Users/sletizia/OneDrive - NREL/Desktop/Main/ENDURA/ASSIST_analysis/Radiosondes_validation/data/awaken/sgpsondewnpnS6.b1/*cdf'
+          'awaken/sb.assist.tropoe.z01.c0','awaken/sc1.assist.tropoe.z01.c0','awaken/sg.assist.tropoe.z01.c0']
+local_sources={'radiosondes':'C:/Users/sletizia/OneDrive - NREL/Desktop/Main/ENDURA/ASSIST_analysis/Radiosondes_validation/data/awaken/sgpsondewnpnS6.b1/*cdf',
+               'ceil.C1':'C:/Users/sletizia/OneDrive - NREL/Desktop/Main/ENDURA/ASSIST_analysis/awaken_processing/data/awaken/sgpdlprofwstats4newsC1.c1/*nc',
+               'lidar.E37':'C:/Users/sletizia/OneDrive - NREL/Desktop/Main/ENDURA/ASSIST_analysis/awaken_processing/data/awaken/sgpdlprofwstats4newsE37.c1/*nc'}
+               
 
 ext={'awaken/sb.assist.z01.00':'assistsummary',
      'awaken/sc1.assist.z01.00':'assistsummary',
@@ -40,9 +44,9 @@ ext={'awaken/sb.assist.z01.00':'assistsummary',
      'awaken/sb.met.z01.b0':'', 
      'awaken/sc1.met.z01.b0':'',  
      'awaken/sg.met.z01.b0':'',
-     'awaken/sb.assist.z01.c0':'',
-     'awaken/sc1.assist.z01.c0':'',
-     'awaken/sg.assist.z01.c0':''}
+     'awaken/sb.assist.tropoe.z01.c0':'',
+     'awaken/sc1.assist.tropoe.z01.c0':'',
+     'awaken/sg.assist.tropoe.z01.c0':''}
 
 dtype={'awaken/sb.assist.z01.00':'cdf',
        'awaken/sc1.assist.z01.00':'cdf',
@@ -52,13 +56,13 @@ dtype={'awaken/sb.assist.z01.00':'cdf',
      'awaken/sb.met.z01.b0':'nc', 
      'awaken/sc1.met.z01.b0':'nc',  
      'awaken/sg.met.z01.b0':'nc',
-     'awaken/sb.assist.z01.c0':'nc',
-     'awaken/sc1.assist.z01.c0':'nc',
-     'awaken/sg.assist.z01.c0':'nc'}
+     'awaken/sb.assist.tropoe.z01.c0':'nc',
+     'awaken/sc1.assist.tropoe.z01.c0':'nc',
+     'awaken/sg.assist.tropoe.z01.c0':'nc'}
 
 
-sdate='20220901000000'#start date for data search
-edate='20231001000000'#end date for data search
+sdate='20221009000000'#start date for data search
+edate='20231025000000'#end date for data search
 
 #grpahics
 colors={'awaken/sb.assist.z01.00':'r',
@@ -66,27 +70,31 @@ colors={'awaken/sb.assist.z01.00':'r',
      'awaken/sg.assist.z01.00':'r',
      'awaken/sa1.ceil.z01.b0':'b',
      'awaken/arm.ceil.sgp_s6.cbh.b1':'b',
+     'ceil.C1':'b',
+     'lidar.E37':'b',
      'awaken/sb.met.z01.b0':'k', 
      'awaken/sc1.met.z01.b0':'k',  
      'awaken/sg.met.z01.b0':'k',
-     'radiosondes':'w',
-     'awaken/sb.assist.z01.c0':'orange',
-     'awaken/sc1.assist.z01.c0':'orange',
-     'awaken/sg.assist.z01.c0':'orange'}
+     'radiosondes':'g',
+     'awaken/sb.assist.tropoe.z01.c0':'orange',
+     'awaken/sc1.assist.tropoe.z01.c0':'orange',
+     'awaken/sg.assist.tropoe.z01.c0':'orange'}
 
 
 labels={'awaken/sb.assist.z01.00':'South ASSIST',
      'awaken/sc1.assist.z01.00':'Middle ASSIST',
      'awaken/sg.assist.z01.00':'North ASSIST',
-     'awaken/sa1.ceil.z01.b0':'CL51 ceilometer',
-     'awaken/arm.ceil.sgp_s6.cbh.b1':'CL31 ceilometer',
+     'awaken/sa1.ceil.z01.b0':'Ceilometer 1',
+     'awaken/arm.ceil.sgp_s6.cbh.b1':'Ceilometer 2',
+     'ceil.C1':'Ceilometer 3',
+     'lidar.E37':'Lidar CBH',
      'awaken/sb.met.z01.b0':'South met', 
      'awaken/sc1.met.z01.b0':'Middle met',  
      'awaken/sg.met.z01.b0':'North met',
      'radiosondes':'Radiosondes',
-     'awaken/sb.assist.z01.c0':'South TROPoe',
-     'awaken/sc1.assist.z01.c0':'Middle TROPoe',
-     'awaken/sg.assist.z01.c0':'North TROPoe'}
+     'awaken/sb.assist.tropoe.z01.c0':'South TROPoe',
+     'awaken/sc1.assist.tropoe.z01.c0':'Middle TROPoe',
+     'awaken/sg.assist.tropoe.z01.c0':'North TROPoe'}
 
 
 #%% Functions
@@ -146,12 +154,14 @@ for c in channels:
     except:
         print(f"{c} is not a channel on WDH")
 
-files_sondes=glob.glob(source_sondes)
-dates_sondes=[f'{os.path.basename(f).split(".")[2]}{os.path.basename(f).split(".")[3]}' for f in files_sondes]
-time_file['radiosondes']=np.array([datetime.strptime(d,"%Y%m%d%H%M%S") for d in dates_sondes])
+for s in local_sources:
+    
+    files_local=glob.glob(local_sources[s])
+    dates_local=[f'{os.path.basename(f).split(".")[2]}{os.path.basename(f).split(".")[3]}' for f in files_local]
+    time_file[s]=np.array([datetime.strptime(d,"%Y%m%d%H%M%S") for d in dates_local])
 
 #%% Plots
-plt.figure(figsize=(16,7))
+plt.figure(figsize=(16,5))
 ctr=0
 yticks=[]
 ylabels=[]
@@ -166,7 +176,7 @@ ax=plt.gca()
 ax.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1))  # First day of each month
 ax.xaxis.set_major_formatter(date_fmt) 
 ax.set_yticks(yticks,ylabels)
-plt.xticks(rotation=30)
-ax.set_facecolor((0,1,0,0.25))
+plt.xticks(rotation=20)
 plt.grid()
 plt.tight_layout()
+plt.xlim([datetime.strptime(sdate,"%Y%m%d%H%M%S")-timedelta(days=2),datetime.strptime(edate,"%Y%m%d%H%M%S")+timedelta(days=1)])
