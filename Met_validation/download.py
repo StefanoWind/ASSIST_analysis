@@ -34,7 +34,7 @@ else:
     t_end=sys.argv[2]  #end date
     download=sys.argv[3]=="True" #download new data?
     mfa=sys.argv[4]=="True" #use MFA on WDH
-    path_config=os.path.join(cd,'config',sys.argv[5])#config path
+    path_config=sys.argv[5]#config path
     
 #%% Initalization
 print(f'Downloading lidar data from {t_start} to {t_end}: download={download}, MFA={mfa}, config={path_config}.')
