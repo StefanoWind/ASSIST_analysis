@@ -65,6 +65,9 @@ for s in config['channels_trp']:
     files=glob.glob(os.path.join(config['path_data'],config['channels_met'][s],'*nc'))
     Data_met=xr.open_mfdataset(files)
     
+    #shift to center time bin
+    Data_met['time']=Data_met['time']-np.median(np.diff(Data_met['time']))/2
+    
     #wind direction
     Data_met['U']=Data_met.average_wind_speed*np.cos(np.radians(270-Data_met.wind_direction))
     Data_met['V']=Data_met.average_wind_speed*np.sin(np.radians(270-Data_met.wind_direction))
