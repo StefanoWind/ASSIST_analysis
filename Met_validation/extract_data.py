@@ -35,7 +35,7 @@ with open(path_config, 'r') as fid:
 for s in config['channels_trp']:
     
     #load tropoe data
-    files=glob.glob(os.path.join(config['path_trp'],config['channels_trp'][s],'*nc'))
+    files=sorted(glob.glob(os.path.join(config['path_trp'],config['channels_trp'][s],'*nc')))
     Data_trp=xr.open_mfdataset(files)
     
     #qc tropoe data
@@ -62,7 +62,7 @@ for s in config['channels_trp']:
     Data_trp.close()
     
     #load met data
-    files=glob.glob(os.path.join(config['path_data'],config['channels_met'][s],'*nc'))
+    files=sorted(glob.glob(os.path.join(config['path_data'],config['channels_met'][s],'*nc')))
     Data_met=xr.open_mfdataset(files)
     
     #shift to center time bin
