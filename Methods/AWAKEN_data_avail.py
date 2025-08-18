@@ -176,7 +176,7 @@ ax=plt.gca()
 ax.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1))  # First day of each month
 ax.xaxis.set_major_formatter(date_fmt) 
 ax.set_yticks(yticks,ylabels)
-ax.set_facecolor((0,0,0,0.1))
+ax.set_facecolor((0,1,0,0.25))
 plt.xticks(rotation=20)
 plt.grid()
 plt.tight_layout()

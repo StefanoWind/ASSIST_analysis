@@ -24,7 +24,7 @@ matplotlib.rcParams['savefig.dpi'] = 300
 #%% Inputs
 source=os.path.join(cd,'data/20250225_AWAKEN_layout.nc')
 
-farms_sel=['Armadillo Flats','King Plains','Breckinridge']
+farms_sel=['Armadillo Flats','King Plains','Breckinridge','unknown Garfield County']
 sites_sel=['B','C1a','G']
 site_rad='H'
 sites_ceil=['A1','H','C1','E37']
@@ -66,20 +66,20 @@ star_marker = MarkerStyle(three_point_star())
 plt.figure(figsize=(18,8))
 cf=plt.contourf(Topo.x_utm-x_ref,Topo.y_utm-y_ref, Topo.elevation.T,np.arange(290,390,5),cmap='summer',extend='both')
 ax=plt.gca()
-ct=plt.contour(Topo.x_utm-x_ref,Topo.y_utm-y_ref, Topo.elevation.T,np.arange(290,390,5),colors='w',linewidths=0.5,alpha=0.5)
+ct=plt.contour(Topo.x_utm-x_ref,Topo.y_utm-y_ref, Topo.elevation.T,np.arange(290,390,5),colors='k',linewidths=0.5,alpha=0.5)
 for site in sites_sel:
     plt.plot(Sites.x_utm.sel(site=site)-x_ref,Sites.y_utm.sel(site=site)-y_ref,'sr',markersize=7)
     
-plt.plot(Sites.x_utm.sel(site=site_rad)-x_ref,Sites.y_utm.sel(site=site_rad)-y_ref,'.c',markersize=20)
+plt.plot(Sites.x_utm.sel(site=site_rad)-x_ref,Sites.y_utm.sel(site=site_rad)-y_ref,'.w',markersize=20)
 for site in sites_ceil:
     if Sites.x_utm.sel(site=site)-x_ref<xlim[0]:
-         plt.plot(xlim[0]+200,Sites.y_utm.sel(site=site)-y_ref,'^b',markersize=7,markerfacecolor="none")
+         plt.plot(xlim[0]+500,Sites.y_utm.sel(site=site)-y_ref,'^b',markersize=7)
     elif Sites.x_utm.sel(site=site)-x_ref>xlim[1]:
-         plt.plot(xlim[1]-200,Sites.y_utm.sel(site=site)-y_ref,'^b',markersize=7,markerfacecolor="none")
+         plt.plot(xlim[1]-500,Sites.y_utm.sel(site=site)-y_ref,'^b',markersize=7)
     elif Sites.y_utm.sel(site=site)-y_ref<ylim[0]:
-         plt.plot(Sites.x_utm.sel(site=site)-x_ref,ylim[0]+200,'^b',markersize=7,markerfacecolor="none")
+         plt.plot(Sites.x_utm.sel(site=site)-x_ref,ylim[0]+500,'^b',markersize=7)
     elif Sites.y_utm.sel(site=site)-y_ref>ylim[1]:
-         plt.plot(Sites.x_utm.sel(site=site)-x_ref,ylim[1]-200,'^b',markersize=7,markerfacecolor="none")
+         plt.plot(Sites.x_utm.sel(site=site)-x_ref,ylim[1]-500,'^b',markersize=7)
     
     else:
         plt.plot(Sites.x_utm.sel(site=site)-x_ref,Sites.y_utm.sel(site=site)-y_ref,'^b',markersize=7)

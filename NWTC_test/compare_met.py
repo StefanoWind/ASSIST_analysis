@@ -251,7 +251,7 @@ for i_h in range(len(height)):
     else:
         cax=None
     utl.plot_lin_fit(f_met.isel(height=i_h).values,
-                     f_trp.isel(height=i_h).values,ax=ax,cax=cax,bins=50,legend=i_h==0)
+                     f_trp.isel(height=i_h).values,ax=ax,cax=cax,bins=50,legend=i_h==0,limits=[0,100])
     
     ax.set_xlim([0,30])
     ax.set_ylim([0,30])
@@ -275,6 +275,7 @@ for i_h in range(len(height)):
                          norm.pdf(bins,loc=0,scale=(sigma_trp.isel(height=i_h).max()**2+sigma_met**2)**0.5),color='r',alpha=0.25)
     ax.set_yscale('log')
     plt.grid()
+    plt.xlim([-4,4])
     if i_h==0:
         ax.set_ylabel('PDF')
         plt.legend(draggable=True)
