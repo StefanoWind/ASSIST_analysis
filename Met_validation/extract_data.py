@@ -37,7 +37,7 @@ for s in config['channels_trp']:
     
     #load tropoe data
     files=sorted(glob.glob(os.path.join(config['path_trp'],config['channels_trp'][s],'*nc')))
-    Data_trp=xr.open_mfdataset(files[:10])
+    Data_trp=xr.open_mfdataset(files)
     
     #qc tropoe data
     Data_trp['cbh'][(Data_trp['lwp']<config['min_lwp']).compute()]=Data_trp['height'].max()#remove clouds with low lwp
