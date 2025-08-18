@@ -476,6 +476,7 @@ cb=plt.colorbar(cf,cax,orientation='horizontal',ticks=np.arange(-2,2.1,1))
 cb.set_label(label='$\Delta r$ (TROPoe-sondes) [g kg$^{-1}$]', labelpad=-100)
 
 #directional effects
+matplotlib.rcParams['font.size'] = 12
 wd=np.radians(np.nanmean(wd_rsn[:,(height>H-D/2)*(height<H+D/2)],axis=1))
 ws=np.nanmean(ws_rsn[:,(height>H-D/2)*(height<H+D/2)],axis=1)
 DT=Diff['DT'].where(Diff.height<H).mean(dim='height').values
