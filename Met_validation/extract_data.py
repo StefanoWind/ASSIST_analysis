@@ -17,7 +17,7 @@ warnings.filterwarnings('ignore')
 if len(sys.argv)==1:
     path_config=os.path.join(cd,'configs/config.yaml') #config path
 else:
-    path_config=os.path.join(cd,'config',sys.argv[1])#config path
+    path_config=sys.argv[1]#config path
     
 var_sel=['temperature','waterVapor',
          'sigma_temperature','sigma_waterVapor',
