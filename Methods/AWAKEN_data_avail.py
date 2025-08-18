@@ -75,7 +75,7 @@ colors={'awaken/sb.assist.z01.00':'r',
      'awaken/sb.met.z01.b0':'k', 
      'awaken/sc1.met.z01.b0':'k',  
      'awaken/sg.met.z01.b0':'k',
-     'radiosondes':'g',
+     'radiosondes':'w',
      'awaken/sb.assist.tropoe.z01.c0':'orange',
      'awaken/sc1.assist.tropoe.z01.c0':'orange',
      'awaken/sg.assist.tropoe.z01.c0':'orange'}
@@ -176,6 +176,7 @@ ax=plt.gca()
 ax.xaxis.set_major_locator(mdates.MonthLocator(bymonthday=1))  # First day of each month
 ax.xaxis.set_major_formatter(date_fmt) 
 ax.set_yticks(yticks,ylabels)
+ax.set_facecolor((0,0,0,0.1))
 plt.xticks(rotation=20)
 plt.grid()
 plt.tight_layout()

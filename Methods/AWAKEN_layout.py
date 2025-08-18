@@ -66,7 +66,7 @@ star_marker = MarkerStyle(three_point_star())
 plt.figure(figsize=(18,8))
 cf=plt.contourf(Topo.x_utm-x_ref,Topo.y_utm-y_ref, Topo.elevation.T,np.arange(290,390,5),cmap='summer',extend='both')
 ax=plt.gca()
-ct=plt.contour(Topo.x_utm-x_ref,Topo.y_utm-y_ref, Topo.elevation.T,np.arange(290,390,5),colors='k',linewidths=0.5,alpha=0.5)
+ct=plt.contour(Topo.x_utm-x_ref,Topo.y_utm-y_ref, Topo.elevation.T,np.arange(290,390,5),colors='w',linewidths=0.5,alpha=0.5)
 for site in sites_sel:
     plt.plot(Sites.x_utm.sel(site=site)-x_ref,Sites.y_utm.sel(site=site)-y_ref,'sr',markersize=7)
     
