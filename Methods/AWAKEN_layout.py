@@ -27,7 +27,7 @@ source=os.path.join(cd,'data/20250225_AWAKEN_layout.nc')
 farms_sel=['Armadillo Flats','King Plains','Breckinridge']
 sites_sel=['B','C1a','G']
 site_rad='H'
-sites_ceil=['A1','H']
+sites_ceil=['A1','H','C1','E37']
 site_ref='C1a'
 
 #graphics
@@ -70,9 +70,19 @@ ct=plt.contour(Topo.x_utm-x_ref,Topo.y_utm-y_ref, Topo.elevation.T,np.arange(290
 for site in sites_sel:
     plt.plot(Sites.x_utm.sel(site=site)-x_ref,Sites.y_utm.sel(site=site)-y_ref,'sr',markersize=7)
     
-plt.plot(Sites.x_utm.sel(site=site_rad)-x_ref,Sites.y_utm.sel(site=site_rad)-y_ref,'.w',markersize=20)
+plt.plot(Sites.x_utm.sel(site=site_rad)-x_ref,Sites.y_utm.sel(site=site_rad)-y_ref,'.c',markersize=20)
 for site in sites_ceil:
-    plt.plot(Sites.x_utm.sel(site=site)-x_ref,Sites.y_utm.sel(site=site)-y_ref,'^b',markersize=7)
+    if Sites.x_utm.sel(site=site)-x_ref<xlim[0]:
+         plt.plot(xlim[0]+200,Sites.y_utm.sel(site=site)-y_ref,'^b',markersize=7,markerfacecolor="none")
+    elif Sites.x_utm.sel(site=site)-x_ref>xlim[1]:
+         plt.plot(xlim[1]-200,Sites.y_utm.sel(site=site)-y_ref,'^b',markersize=7,markerfacecolor="none")
+    elif Sites.y_utm.sel(site=site)-y_ref<ylim[0]:
+         plt.plot(Sites.x_utm.sel(site=site)-x_ref,ylim[0]+200,'^b',markersize=7,markerfacecolor="none")
+    elif Sites.y_utm.sel(site=site)-y_ref>ylim[1]:
+         plt.plot(Sites.x_utm.sel(site=site)-x_ref,ylim[1]-200,'^b',markersize=7,markerfacecolor="none")
+    
+    else:
+        plt.plot(Sites.x_utm.sel(site=site)-x_ref,Sites.y_utm.sel(site=site)-y_ref,'^b',markersize=7)
 
 
 for wf in farms_sel:

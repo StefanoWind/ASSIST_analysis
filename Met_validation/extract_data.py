@@ -37,7 +37,7 @@ for s in config['channels_trp']:
     
     #load tropoe data
     files=sorted(glob.glob(os.path.join(config['path_trp'],config['channels_trp'][s],'*nc')))
-    Data_trp=xr.open_mfdataset(files)
+    Data_trp=xr.open_mfdataset(files[:10])
     
     #qc tropoe data
     Data_trp['cbh'][(Data_trp['lwp']<config['min_lwp']).compute()]=Data_trp['height'].max()#remove clouds with low lwp
@@ -64,20 +64,18 @@ for s in config['channels_trp']:
     
     #load met data
     files=np.array(sorted(glob.glob(os.path.join(config['path_data'],config['channels_met'][s],'*nc'))))
-    index=np.arange(0,len(files)+N_files+1,N_files)
     
     Data_met=xr.Dataset()
-    for i in index:
-        sel=np.arange(N_files)+i
-        sel=sel[sel<len(files)]
-        if len(sel)>0:
-            Data_met_sel=xr.open_mfdataset(files[sel])
+    for f in files:
+        try:
+            Data_met_sel=xr.open_dataset(f).sortby('time')
             if "wind_speed" not in Data_met.data_vars:
                 Data_met=Data_met_sel.copy()
             else:
-                Data_met=xr.concat([Data_met,Data_met_sel],dim='time')
-        
-            print(f'Loaded up to {files[sel[-1]]}')
+                Data_met=xr.concat([Data_met,Data_met_sel],dim='time').drop_duplicates(dim="time")
+            print(f'Loaded up to {f}')
+        except:
+            print(f'File {f} failed')
         
     #shift to center time bin
     Data_met['time']=Data_met['time']-np.median(np.diff(Data_met['time']))/2
