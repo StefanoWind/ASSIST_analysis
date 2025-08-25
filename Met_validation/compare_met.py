@@ -284,9 +284,9 @@ for s in site_diff:
     ax.set_xticks([-4,-2,0,2,4])
     ax.set_yticks([-4,-2,0,2,4])
     ax.grid(True)
-    ax.set_xlabel(r'$\Delta T$ ('+site_diff_names[s]+r', met) [$^\circ$C]')
+    ax.set_xlabel(r'$\Delta T$ (met) [$^\circ$C]')
     if ctr==0:
-        ax.set_ylabel(r'$\Delta T$ ('+site_diff_names[s]+r', TROPoe) [$^\circ$C]')
+        ax.set_ylabel(r'$\Delta T$ (TROPoe) [$^\circ$C]')
         plt.legend(draggable=True)
     else:
         ax.set_yticklabels([])
@@ -306,7 +306,7 @@ for s in site_diff:
     else:
         ax.yaxis.set_major_formatter(NullFormatter())
     
-    ax.set_xlabel(r'$\Delta (\Delta T)$ ('+site_diff_names[s]+r', TROPoe-met) [$^\circ$C]')
+    ax.set_xlabel(r'$\Delta (\Delta T)$ (TROPoe-met) [$^\circ$C]')
     plt.xlim([-4,4])
     plt.ylim([0.01,10])
     ctr+=1    
@@ -319,7 +319,7 @@ ctr=0
 for sc in stab_class_uni:
     colors[sc]=cmap(ctr/(len(stab_class_uni)-1))
     ctr+=1
-    
+colors['N']=tuple(x*0.8 for x in colors['N'][:-1])+(1,)    
 plt.figure(figsize=(18,8))
 i_s=0
 for s in sites:  
@@ -338,7 +338,7 @@ for s in sites:
     ax.set_xticklabels([])
     i_sc=0
     for sc in stab_class_uni:
-        plt.text(i_sc+0.1,1.5,np.round(diff_avg[i_s,i_sc],2),color=colors[sc])
+        plt.text(i_sc+0.05,1.5,np.round(diff_avg[i_s,i_sc],2),color=colors[sc])
         i_sc+=1
     i_s+=1
     
@@ -354,10 +354,10 @@ for s in site_diff:
         plt.ylabel("")
         ax.set_yticklabels([])
     else:
-        ax.set_ylabel(r'$\Delta (\Delta T)$, (TROPoe-met) [$^\circ$C]')
+        ax.set_ylabel(r'$\Delta (\Delta T)$ (TROPoe-met) [$^\circ$C]')
     ax.set_xlabel('')
     i_sc=0
     for sc in stab_class_uni:
-        plt.text(i_sc+0.15,1.5,np.round(diff_diff_avg[i_s,i_sc],2),color=colors[sc])
+        plt.text(i_sc+0.05,1.5,np.round(diff_diff_avg[i_s,i_sc],2),color=colors[sc])
         i_sc+=1
     i_s+=1
