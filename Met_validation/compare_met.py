@@ -108,7 +108,8 @@ for s in sites:
     Data_trp=Data_trp.where(Data_trp.qc==0)
     
     print(f"{int(np.sum(Data_met.time_diff>max_time_diff))} points fail max_time_diff")
-    Data_met=Data_met.where(np.abs(Data_met.time_diff)<=max_time_diff)
+    print(f"{int(np.sum(Data_met.qc_temperature!=0))} points fail met QC")
+    Data_met=Data_met.where(np.abs(Data_met.time_diff)<=max_time_diff).where(Data_met.qc_temperature==0)
     
     #height interpolation
     T_trp[s]=Data_trp.temperature.interp(height=height_met)
