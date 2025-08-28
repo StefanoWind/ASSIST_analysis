@@ -203,9 +203,6 @@ for unit in units:
     
     #tropoe uncertainty statistics
     f_avg=np.zeros((len(height),len(bin_Ri)-1))
-    f_low=np.zeros((len(height),len(bin_Ri)-1))
-    f_top=np.zeros((len(height),len(bin_Ri)-1))      
-
     for i_h in range(len(height)):
         f_sel=sigma_trp.isel(height=i_h).values
         real=~np.isnan(Ri.values+f_sel)
@@ -213,22 +210,25 @@ for unit in units:
                                             statistic=lambda x: utl.filt_stat(x,   np.nanmean,perc_lim=[0,100]),
                                             bins=bin_Ri)[0]**0.5
         
-    f_avg[np.isnan(f_top-f_low)]=np.nan
     std_trp_avg[unit]=xr.DataArray(f_avg,coords={'height':height,'Ri':(bin_Ri[1:]+bin_Ri[:-1])/2})
    
     std_pred[unit]=D_avg[unit].interp(space=spacing[unit])
     
     #removing instrumental uncertainty
     var=std_avg[unit]**2-std_trp_avg[unit]**2-sigma_met**2
-    std_corr_avg[unit]=var**0.5
-    std_corr_avg[unit]=std_corr_avg[unit].where((var>0) + np.isnan(var),min_std)
-    std_corr_low[unit]=(std_low[unit]**2-std_trp_avg[unit]**2-sigma_met**2)**0.5
-    std_corr_top[unit]=(std_top[unit]**2-std_trp_avg[unit]**2-sigma_met**2)**0.5
+    std_corr_avg[unit]=(var**0.5).where((var>0) + np.isnan(var),min_std)
+    
+    var=std_low[unit]**2-std_trp_avg[unit]**2-sigma_met**2
+    std_corr_low[unit]=(var**0.5).where((var>0) + np.isnan(var),min_std)
+    
+    var=std_top[unit]**2-std_trp_avg[unit]**2-sigma_met**2
+    std_corr_top[unit]=(var**0.5).where((var>0) + np.isnan(var),min_std)
     
 #%% Plots
 plt.close('all')
 cmap = plt.get_cmap("coolwarm_r")
 colors = [cmap(i) for i in np.linspace(0,1,len(bin_Ri)-1)]
+colors[stab_names['N']]=tuple(x*0.8 for x in colors[stab_names['N']][:-1])+(1,)  
 for unit in units:
     fig=plt.figure(figsize=(18,5))
     for i_h in range(len(height)):
@@ -236,7 +236,7 @@ for unit in units:
         for s in stab_names:
             i_Ri=stab_names[s]
            
-            ax.axvline(spacing[unit],0,1.5,color='g',linestyle='-',linewidth=20,alpha=0.1)
+            ax.axvspan(spacing[unit]*0.9,spacing[unit]*1.1,0,1.5,linestyle='-',facecolor=(0,0.5,0,0.025), edgecolor=(0,0.5,0,1))
             shift=(i_Ri-(len(bin_Ri)-2)/2)/2
             plt.plot(spacing[unit]*(1+shift/10),std_avg[unit].isel(height=i_h,Ri=i_Ri),'^',
                      markersize=10, markerfacecolor=colors[i_Ri][:-1]+(0.5,),markeredgecolor=colors[i_Ri],zorder=10)
@@ -268,7 +268,7 @@ for i_h in range(len(height)):
     for s in stab_names:
         i_Ri=stab_names[s]
         for unit in units:
-            ax.axvline(spacing[unit],0,1.5,color='g',linestyle='-',linewidth=20,alpha=0.1)
+            ax.axvspan(spacing[unit]*0.9,spacing[unit]*1.1,0,1.5,linestyle='-',facecolor=(0,0.5,0,0.025), edgecolor=(0,0.5,0,1))
             shift=(i_Ri-(len(bin_Ri)-2)/2)/2
             plt.plot(spacing[unit]*(1+shift/10),std_corr_avg[unit].isel(height=i_h,Ri=i_Ri),'^',
                      markersize=10, markerfacecolor=colors[i_Ri][:-1]+(0.5,),markeredgecolor=colors[i_Ri],zorder=10)
