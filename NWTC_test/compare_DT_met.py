@@ -210,7 +210,7 @@ for v in df_dz_trp.data_vars:
     if ctr==0:
         plt.legend(draggable=True)
     
-    vmax=np.max([np.abs(df_dz_met[v]).max(),np.abs(df_dz_trp[v]).max()])
+    vmax=np.max([np.nanpercentile(np.abs(df_dz_met[v]),99),np.nanpercentile(np.abs(df_dz_trp[v]),99)])
     ax.set_xlim([-vmax,vmax])
     ax.set_ylim([-vmax,vmax])
     
@@ -223,6 +223,10 @@ for v in df_dz_trp.data_vars:
     
     inset_ax = ax.inset_axes([0.8, 0.1, 0.1, 0.5])
     inset_ax.plot([0,0],[0,135],'k',linewidth=2)
+    for z in height:
+        inset_ax.plot([0,0.1],[z,z],'-k',alpha=0.25)
+        inset_ax.plot(0.1,z,'.k',alpha=0.25,markersize=7.5)
+        
     inset_ax.plot([0,0.1],[int(v.split('-')[0]),int(v.split('-')[0])],'-k')
     inset_ax.plot(0.1,int(v.split('-')[0]),'.k',markersize=10)
     inset_ax.plot([0,0.1],[int(v.split('-')[1]),int(v.split('-')[1])],'-k')

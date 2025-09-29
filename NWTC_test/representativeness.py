@@ -276,7 +276,7 @@ for i_h in range(len(height)):
                                       [[std_corr_avg[unit].isel(height=i_h,Ri=i_Ri)-std_corr_low[unit].isel(height=i_h,Ri=i_Ri)],
                                        [std_corr_top[unit].isel(height=i_h,Ri=i_Ri)-std_corr_avg[unit].isel(height=i_h,Ri=i_Ri)]],
                                       color=colors[i_Ri],capsize=5,alpha=0.75,zorder=10)
-        plt.plot(D_avg[unit_sel].space,D_avg[unit_sel].space**(1/3)*10**-3*5,'--k')
+        # plt.plot(D_avg[unit_sel].space,D_avg[unit_sel].space**(1/3)*10**-3*5,'--k')
                 
         plt.plot(D_avg[unit_sel].space,D_avg[unit_sel].isel(height=i_h,Ri=i_Ri),'.-',color=colors[i_Ri],label=s,markersize=7)
         ax.fill_between(D_avg[unit_sel].space,D_low[unit_sel].isel(height=i_h,Ri=i_Ri),D_top[unit_sel].isel(height=i_h,Ri=i_Ri),

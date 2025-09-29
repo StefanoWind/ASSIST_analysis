@@ -170,7 +170,7 @@ fig=plt.figure(figsize=(18,8))
 gs = gridspec.GridSpec(len(sites_trp),2,width_ratios=[1,0.03]) 
 ctr=0
 for s in sites_trp:
-    ax=fig.add_subplot(gs[ctr,0])
+    ax=fig.add_subplot(gs[len(sites_trp)-1-ctr,0])
     cf=plt.contourf(T_trp[s].time,T_trp[s].height,T_trp[s].T,np.arange(T_min,T_max+.1,0.2),cmap='hot',extend='both')
     plt.contour(T_trp[s].time,T_trp[s].height,T_trp[s].T,np.arange(T_min,T_max+.1,0.2),colors='k',linewidths=1,alpha=0.25,extend='both')
     
