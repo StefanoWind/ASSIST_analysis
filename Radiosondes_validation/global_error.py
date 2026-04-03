@@ -10,7 +10,7 @@ import utils as utl
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid
 import matplotlib.gridspec as gridspec
 import warnings
 import matplotlib
@@ -117,7 +117,7 @@ for f in files_rsn:
     #define coords
     tnum_rsn=np.float64(time_rsn)/10**9
     asc=Data_rsn['asc'].values
-    height_rsn=cumtrapz(asc,tnum_rsn,initial=z0_sonde)
+    height_rsn=cumulative_trapezoid(asc,tnum_rsn,initial=z0_sonde)
     
     #time matching
     date1=utl.datestr(np.nanmin(tnum_rsn[height_rsn<=max_height]),'%Y%m%d')
@@ -353,7 +353,7 @@ index=np.arange(len(time))
 plt.close('all')
 
 #temperature
-fig=plt.figure(figsize=(18,8))
+fig=plt.figure(figsize=(18,6))
 gs = gridspec.GridSpec(2, 5,height_ratios=[1,10],width_ratios=[2,2,5,5,5])
 ax=fig.add_subplot(gs[1,0])
 plt.plot(bias_avg,height,'-k',label='Data')
@@ -381,37 +381,35 @@ plt.grid()
 plt.xlabel(r'RMS of $\Delta T$ [$^\circ$C]')
 
 ax=fig.add_subplot(gs[1,2])
-cf=plt.contourf(index,height,T_rsn.T,np.arange(10,37,0.5),cmap='hot',extend='both')
-plt.contour(index,height,T_rsn.T,np.arange(10,37,0.5),colors='k',alpha=0.25,linewidths=1)
+cf=plt.pcolor(index,height,T_rsn.T,vmin=10,vmax=37,cmap='hot')
+# plt.contour(index,height,T_rsn.T,np.arange(10,37,0.5),colors='k',alpha=0.25,linewidths=1)
 plt.xlabel('Sonde launch #')
 ax.set_yticklabels([])
 plt.ylim([0,max_height])
 
 cax=fig.add_subplot(gs[0,2])
 cb=plt.colorbar(cf,cax,orientation='horizontal',ticks=np.arange(10,36,5))
-cb.set_label(label='$T$ (sondes) [$^\circ$C]', labelpad=-100)
+cb.set_label(label='$T$ (sondes) [$^\circ$C]', labelpad=-75)
 
 ax=fig.add_subplot(gs[1,3])
-cf=plt.contourf(index,height,T_trp.T,np.arange(10,37,0.5),cmap='hot',extend='both')
-plt.contour(index,height,T_trp.T,np.arange(10,37,0.5),colors='k',alpha=0.25,linewidths=1)
+cf=plt.pcolor(index,height,T_trp.T,vmin=10,vmax=37,cmap='hot')
 plt.xlabel('Sonde launch #')
 ax.set_yticklabels([])
 plt.ylim([0,max_height])
 
 cax=fig.add_subplot(gs[0,3])
 cb=plt.colorbar(cf,cax,orientation='horizontal',ticks=np.arange(10,36,5))
-cb.set_label(label=r'$T$ (TROPoe) [$^\circ$C]', labelpad=-100)
+cb.set_label(label=r'$T$ (TROPoe) [$^\circ$C]', labelpad=-75)
 
 ax=fig.add_subplot(gs[1,4])
-cf=plt.contourf(index,height,T_trp.T-T_rsn.T,np.arange(-2,2.1,0.25),cmap='seismic',extend='both')
-plt.contour(index,height,T_trp.T-T_rsn.T,np.arange(-2,2.1,0.25),colors='k',alpha=0.25,linewidths=1)
+cf=plt.pcolor(index,height,T_trp.T-T_rsn.T,vmin=-2,vmax=2,cmap='seismic')
 plt.xlabel('Sonde launch #')
 ax.set_yticklabels([])
 plt.ylim([0,max_height])
 
 cax=fig.add_subplot(gs[0,4])
 cb=plt.colorbar(cf,cax,orientation='horizontal',ticks=np.arange(-2,2.1,1))
-cb.set_label(label='$\Delta T$ (TROPoe-sondes) [$^\circ$C]', labelpad=-100)
+cb.set_label(label='$\Delta T$ (TROPoe-sondes) [$^\circ$C]', labelpad=-75)
 
 
 #mix ratio

@@ -193,7 +193,7 @@ for i_h in range(len(data.height)):
     f_plot_qc=np.vstack([data_std['temp_std_qc'].values[:,:,i_h].T,data_std['temp_std_qc'].values[:,0,i_h]]).T
     f_plot=np.vstack([data_std['temp_std_avg'].values[:,:,i_h].T,data_std['temp_std_avg'].values[:,0,i_h]]).T
     cf=plt.contourf(theta,hour_avg_wd,f_plot_qc,np.arange(0.1,0.31,0.01),extend='both',cmap='hot')
-    plt.contour(theta,hour_avg_wd,f_plot,np.arange(0.1,0.31,0.01),cmap='hot',alpha=1,linewidths=1)
+    plt.contourf(theta,hour_avg_wd,f_plot,np.arange(0.1,0.31,0.01),cmap='hot',alpha=1,linewidths=1)
     plt.contour(theta,hour_avg_wd,f_plot_qc,np.arange(0.1,0.31,0.01),colors='k',alpha=0.5,linewidths=0.1)
     ax.set_theta_zero_location('N')
     ax.set_theta_direction(-1)
@@ -205,7 +205,7 @@ for i_h in range(len(data.height)):
     plt.plot(theta_plot,theta_plot*0+hour_sunrise,'.g',markersize=2)
     plt.plot(theta_plot,theta_plot*0+hour_sunset,'.g',markersize=2)
 plt.tight_layout()
-cbar_ax = fig.add_axes([0.1, 0.1, 0.8, 0.03])  # spans most of the width
+cbar_ax = fig.add_axes([0.05, 0.15, 0.9, 0.03])  # spans most of the width
 cbar = fig.colorbar(cf, cax=cbar_ax, orientation='horizontal',ticks=np.arange(0.1,0.31,0.05))
 cbar.set_label(r'$\sqrt{\overline{T^{\prime 2}}}$ [$^\circ$C]')
 
@@ -217,7 +217,7 @@ for i_h in range(len(data.height)):
     f_plot_qc=np.vstack([data_std['ti_qc'].values[:,:,i_h].T,data_std['ti_qc'].values[:,0,i_h]]).T
     f_plot=np.vstack([data_std['ti_avg'].values[:,:,i_h].T,data_std['ti_avg'].values[:,0,i_h]]).T
     cf=plt.contourf(theta,hour_avg_wd,f_plot_qc,np.arange(10,41),extend='both',cmap='viridis')
-    plt.contour(theta,hour_avg_wd,f_plot,np.arange(10,41),cmap='viridis',alpha=1,linewidths=1)
+    # plt.contour(theta,hour_avg_wd,f_plot,np.arange(10,41),cmap='viridis',alpha=1,linewidths=1)
     plt.contour(theta,hour_avg_wd,f_plot_qc,np.arange(10,41),colors='k',alpha=0.5,linewidths=0.1)
     ax.set_theta_zero_location('N')
     ax.set_theta_direction(-1)
@@ -229,7 +229,7 @@ for i_h in range(len(data.height)):
     plt.plot(theta_plot,theta_plot*0+hour_sunrise,'.r',markersize=2)
     plt.plot(theta_plot,theta_plot*0+hour_sunset,'.r',markersize=2)
 plt.tight_layout()
-cbar_ax = fig.add_axes([0.1, 0.1, 0.8, 0.03])  # spans most of the width
+cbar_ax = fig.add_axes([0.05, 0.15, 0.9, 0.03]) # spans most of the width
 cbar = fig.colorbar(cf, cax=cbar_ax, orientation='horizontal',ticks=np.arange(10,41,5))
 cbar.set_label('TI [%]')
 

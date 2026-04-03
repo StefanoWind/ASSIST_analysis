@@ -18,7 +18,7 @@ import warnings
 warnings.filterwarnings('ignore')
 matplotlib.rcParams['font.family'] = 'serif'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.size'] = 16
+matplotlib.rcParams['font.size'] = 18
 matplotlib.rcParams['savefig.dpi']=500
 plt.close("all")
 
@@ -136,7 +136,7 @@ for s in sites_met:
 #%% Plots
 plt.close("all")
 star_marker = MarkerStyle(three_point_star())
-fig=plt.figure(figsize=(25,4))
+fig=plt.figure(figsize=(18,3.5))
 gs = gridspec.GridSpec(1,len(times)+1,width_ratios=[1]*len(times)+[0.1]) 
 for i in range(len(times)):
     ax=fig.add_subplot(gs[i])
@@ -158,12 +158,16 @@ for i in range(len(times)):
         plt.ylabel('S-N [m]')
     plt.xlim([-15000,15000])
     plt.ylim([-16000,14000])
+    plt.xticks([-10000,0,10000])
+    plt.yticks([-10000,0,10000])
     plt.grid()
     ax.set_aspect('equal')
     plt.title(str(times[i]).split('T')[-1]+' UTC')
-    
-cax=fig.add_subplot(gs[0,i+1])
+
+plt.subplots_adjust(wspace=0.08,bottom=0.2)
+cax=fig.add_subplot(gs[:,-1])
 plt.colorbar(sc,cax,label=r'$T$ [$^\circ$C]')
+
 
 matplotlib.rcParams['font.size'] = 16
 fig=plt.figure(figsize=(18,8))
@@ -174,7 +178,7 @@ for s in sites_trp:
     cf=plt.contourf(T_trp[s].time,T_trp[s].height,T_trp[s].T,np.arange(T_min,T_max+.1,0.2),cmap='hot',extend='both')
     plt.contour(T_trp[s].time,T_trp[s].height,T_trp[s].T,np.arange(T_min,T_max+.1,0.2),colors='k',linewidths=1,alpha=0.25,extend='both')
     
-    if ctr==len(sites_trp)-1:
+    if ctr==0:
         plt.xlabel('Time (UTC)')
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
     else:
